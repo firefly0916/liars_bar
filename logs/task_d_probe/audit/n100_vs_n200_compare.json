@@ -1,0 +1,41 @@
+{
+  "log_files": [
+    "logs/task_d_probe/probe_logs/task-c-20260417-191531-065.jsonl",
+    "logs/task_d_probe/probe_logs/task-c-20260417-191531-029.jsonl",
+    "logs/task_d_probe/probe_logs/task-c-20260417-191531-043.jsonl",
+    "logs/task_d_probe/probe_logs/task-c-20260417-191531-096.jsonl",
+    "logs/task_d_probe/probe_logs/task-c-20260417-191531-044.jsonl"
+  ],
+  "results": {
+    "100": {
+      "per_game_efficiency_metric": {
+        "sample_count": 5,
+        "mean_abs_error": 0.6759999999999999,
+        "mean_signed_error": -0.6759999999999999,
+        "max_abs_error": 0.88
+      },
+      "winner_efficiency_metric": {
+        "sample_count": 5,
+        "mean_abs_error": 0.658,
+        "mean_signed_error": -0.658,
+        "max_abs_error": 0.7699999999999999
+      }
+    },
+    "200": {
+      "per_game_efficiency_metric": {
+        "sample_count": 5,
+        "mean_abs_error": 0.667,
+        "mean_signed_error": -0.667,
+        "max_abs_error": 0.89
+      },
+      "winner_efficiency_metric": {
+        "sample_count": 5,
+        "mean_abs_error": 0.643,
+        "mean_signed_error": -0.643,
+        "max_abs_error": 0.725
+      }
+    }
+  },
+  "delta_mean_abs_error_per_game": -0.008999999999999897,
+  "delta_mean_abs_error_winner": -0.015000000000000013
+}

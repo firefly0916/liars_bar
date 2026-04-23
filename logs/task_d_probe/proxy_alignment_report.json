@@ -1,0 +1,13 @@
+{
+  "sample_size": 20,
+  "requested_sample_size": 20,
+  "pearson_correlation": 0.33387217391767215,
+  "mae": 0.09481335178017616,
+  "speedup_ratio": 451.44874197451475,
+  "rollout_elapsed_seconds": 11.00178372099981,
+  "proxy_elapsed_seconds": 0.024369951000153378,
+  "rollout_samples": 200,
+  "alignment_passed": false,
+  "selected_run_id": "task-c-20260417-191531",
+  "log_count": 100
+}

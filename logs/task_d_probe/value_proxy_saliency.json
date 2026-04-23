@@ -1,0 +1,43 @@
+{
+  "sample_count": 11127,
+  "feature_names": [
+    "phase_norm",
+    "table_type_norm",
+    "must_call_liar",
+    "alive_player_count_norm",
+    "hand_count_norm",
+    "death_probability"
+  ],
+  "mean_abs_gradient_saliency": {
+    "phase_norm": 0.04525373503565788,
+    "table_type_norm": 0.026672346517443657,
+    "must_call_liar": 0.10604648292064667,
+    "alive_player_count_norm": 0.47066015005111694,
+    "hand_count_norm": 0.06559059023857117,
+    "death_probability": 0.15300102531909943
+  },
+  "first_layer_mean_abs_weight": {
+    "phase_norm": 0.18977752327919006,
+    "table_type_norm": 0.19965891540050507,
+    "must_call_liar": 0.21227458119392395,
+    "alive_player_count_norm": 0.23212724924087524,
+    "hand_count_norm": 0.24879571795463562,
+    "death_probability": 0.22082103788852692
+  },
+  "gradient_rank_desc": [
+    "alive_player_count_norm",
+    "death_probability",
+    "must_call_liar",
+    "hand_count_norm",
+    "phase_norm",
+    "table_type_norm"
+  ],
+  "weight_rank_desc": [
+    "hand_count_norm",
+    "alive_player_count_norm",
+    "death_probability",
+    "must_call_liar",
+    "table_type_norm",
+    "phase_norm"
+  ]
+}

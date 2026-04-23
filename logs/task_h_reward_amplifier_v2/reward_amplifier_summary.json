@@ -1,0 +1,13 @@
+{
+  "credit_report": "logs/task_h_reward_amplifier_v2/credit_report.csv",
+  "row_count": 20,
+  "max_avg_shapley_value": 0.174286,
+  "min_avg_shapley_value": -0.293333,
+  "count_above_0_1": 1,
+  "top_row": {
+    "skill_name": "Truthful_Action",
+    "death_prob_bucket": ">1/2",
+    "avg_shapley_value": "0.174286",
+    "sample_count": "700"
+  }
+}

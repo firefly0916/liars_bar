@@ -1,0 +1,1892 @@
+{
+  "selected_run_id": "task-c-20260417-191531",
+  "sample_size": 20,
+  "top3_abs_error": [
+    {
+      "key": "task-c-20260417-191531-100#t24#p2",
+      "game_id": "task-c-20260417-191531-100",
+      "turn": 24,
+      "player_id": "p2",
+      "skill_name": "Null_Probe_Skill",
+      "winner": "p1",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_player_count": 3,
+        "hand_count": 5,
+        "death_probability": 0.3333333333333333
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.0,
+        0.0,
+        0.75,
+        0.625,
+        0.3333333333333333
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_players": [
+          "p4",
+          "p2",
+          "p1"
+        ],
+        "pending_claim": {
+          "actor_id": "p4",
+          "claim_rank": "A",
+          "declared_count": 2
+        },
+        "private_hand": [
+          "A",
+          "A",
+          "JOKER",
+          "Q",
+          "K"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "A",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": -0.375,
+        "value_action": 0.0,
+        "value_counterfactual": 0.375
+      },
+      "proxy": {
+        "phi": 0.09206102788448334,
+        "value_action": 0.49311208724975586,
+        "value_counterfactual": 0.4010510593652725
+      },
+      "phi_error": 0.46706102788448334,
+      "abs_phi_error": 0.46706102788448334,
+      "sign_mismatch": true,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.6,
+        "inventory_logic_conflict": -2
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-074#t5#p2",
+      "game_id": "task-c-20260417-191531-074",
+      "turn": 5,
+      "player_id": "p2",
+      "skill_name": "Truthful_Action",
+      "winner": "p1",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_player_count": 4,
+        "hand_count": 5,
+        "death_probability": 0.16666666666666666
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.5,
+        0.0,
+        1.0,
+        0.625,
+        0.16666666666666666
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_players": [
+          "p2",
+          "p4",
+          "p1",
+          "p3"
+        ],
+        "pending_claim": {
+          "actor_id": "p3",
+          "claim_rank": "K",
+          "declared_count": 1
+        },
+        "private_hand": [
+          "K",
+          "A",
+          "Q",
+          "Q",
+          "K"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "K",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.26,
+        "value_action": 0.83,
+        "value_counterfactual": 0.57
+      },
+      "proxy": {
+        "phi": -0.005207747220993042,
+        "value_action": 0.22492018342018127,
+        "value_counterfactual": 0.23012793064117432
+      },
+      "phi_error": -0.26520774722099305,
+      "abs_phi_error": 0.26520774722099305,
+      "sign_mismatch": true,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.4,
+        "inventory_logic_conflict": -3
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-004#t20#p4",
+      "game_id": "task-c-20260417-191531-004",
+      "turn": 20,
+      "player_id": "p4",
+      "skill_name": "Truthful_Action",
+      "winner": "p2",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_player_count": 4,
+        "hand_count": 5,
+        "death_probability": 0.2
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.0,
+        0.0,
+        1.0,
+        0.625,
+        0.2
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_players": [
+          "p1",
+          "p4",
+          "p2",
+          "p3"
+        ],
+        "pending_claim": {
+          "actor_id": "p1",
+          "claim_rank": "A",
+          "declared_count": 2
+        },
+        "private_hand": [
+          "A",
+          "A",
+          "Q",
+          "K",
+          "K"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "A",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.22499999999999998,
+        "value_action": 0.495,
+        "value_counterfactual": 0.27
+      },
+      "proxy": {
+        "phi": 0.005298234522342682,
+        "value_action": 0.23237009346485138,
+        "value_counterfactual": 0.2270718589425087
+      },
+      "phi_error": -0.2197017654776573,
+      "abs_phi_error": 0.2197017654776573,
+      "sign_mismatch": false,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.4,
+        "inventory_logic_conflict": -2
+      }
+    }
+  ],
+  "top3_sign_mismatch": [
+    {
+      "key": "task-c-20260417-191531-100#t24#p2",
+      "game_id": "task-c-20260417-191531-100",
+      "turn": 24,
+      "player_id": "p2",
+      "skill_name": "Null_Probe_Skill",
+      "winner": "p1",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_player_count": 3,
+        "hand_count": 5,
+        "death_probability": 0.3333333333333333
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.0,
+        0.0,
+        0.75,
+        0.625,
+        0.3333333333333333
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_players": [
+          "p4",
+          "p2",
+          "p1"
+        ],
+        "pending_claim": {
+          "actor_id": "p4",
+          "claim_rank": "A",
+          "declared_count": 2
+        },
+        "private_hand": [
+          "A",
+          "A",
+          "JOKER",
+          "Q",
+          "K"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "A",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": -0.375,
+        "value_action": 0.0,
+        "value_counterfactual": 0.375
+      },
+      "proxy": {
+        "phi": 0.09206102788448334,
+        "value_action": 0.49311208724975586,
+        "value_counterfactual": 0.4010510593652725
+      },
+      "phi_error": 0.46706102788448334,
+      "abs_phi_error": 0.46706102788448334,
+      "sign_mismatch": true,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.6,
+        "inventory_logic_conflict": -2
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-074#t5#p2",
+      "game_id": "task-c-20260417-191531-074",
+      "turn": 5,
+      "player_id": "p2",
+      "skill_name": "Truthful_Action",
+      "winner": "p1",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_player_count": 4,
+        "hand_count": 5,
+        "death_probability": 0.16666666666666666
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.5,
+        0.0,
+        1.0,
+        0.625,
+        0.16666666666666666
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_players": [
+          "p2",
+          "p4",
+          "p1",
+          "p3"
+        ],
+        "pending_claim": {
+          "actor_id": "p3",
+          "claim_rank": "K",
+          "declared_count": 1
+        },
+        "private_hand": [
+          "K",
+          "A",
+          "Q",
+          "Q",
+          "K"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "K",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.26,
+        "value_action": 0.83,
+        "value_counterfactual": 0.57
+      },
+      "proxy": {
+        "phi": -0.005207747220993042,
+        "value_action": 0.22492018342018127,
+        "value_counterfactual": 0.23012793064117432
+      },
+      "phi_error": -0.26520774722099305,
+      "abs_phi_error": 0.26520774722099305,
+      "sign_mismatch": true,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.4,
+        "inventory_logic_conflict": -3
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-004#t12#p4",
+      "game_id": "task-c-20260417-191531-004",
+      "turn": 12,
+      "player_id": "p4",
+      "skill_name": "Logical_Skepticism",
+      "winner": "p2",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "Q",
+        "must_call_liar": false,
+        "alive_player_count": 4,
+        "hand_count": 4,
+        "death_probability": 0.16666666666666666
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        1.0,
+        0.0,
+        1.0,
+        0.5,
+        0.16666666666666666
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "Q",
+        "must_call_liar": false,
+        "alive_players": [
+          "p1",
+          "p4",
+          "p2",
+          "p3"
+        ],
+        "pending_claim": {
+          "actor_id": "p1",
+          "claim_rank": "Q",
+          "declared_count": 1
+        },
+        "private_hand": [
+          "K",
+          "K",
+          "K",
+          "K"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "Q",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": -0.15999999999999998,
+        "value_action": 0.25,
+        "value_counterfactual": 0.41
+      },
+      "proxy": {
+        "phi": 0.005661278963088989,
+        "value_action": 0.24813438951969147,
+        "value_counterfactual": 0.24247311055660248
+      },
+      "phi_error": 0.16566127896308896,
+      "abs_phi_error": 0.16566127896308896,
+      "sign_mismatch": true,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.0,
+        "inventory_logic_conflict": -5
+      }
+    }
+  ],
+  "all_points": [
+    {
+      "key": "task-c-20260417-191531-100#t24#p2",
+      "game_id": "task-c-20260417-191531-100",
+      "turn": 24,
+      "player_id": "p2",
+      "skill_name": "Null_Probe_Skill",
+      "winner": "p1",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_player_count": 3,
+        "hand_count": 5,
+        "death_probability": 0.3333333333333333
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.0,
+        0.0,
+        0.75,
+        0.625,
+        0.3333333333333333
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_players": [
+          "p4",
+          "p2",
+          "p1"
+        ],
+        "pending_claim": {
+          "actor_id": "p4",
+          "claim_rank": "A",
+          "declared_count": 2
+        },
+        "private_hand": [
+          "A",
+          "A",
+          "JOKER",
+          "Q",
+          "K"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "A",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": -0.375,
+        "value_action": 0.0,
+        "value_counterfactual": 0.375
+      },
+      "proxy": {
+        "phi": 0.09206102788448334,
+        "value_action": 0.49311208724975586,
+        "value_counterfactual": 0.4010510593652725
+      },
+      "phi_error": 0.46706102788448334,
+      "abs_phi_error": 0.46706102788448334,
+      "sign_mismatch": true,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.6,
+        "inventory_logic_conflict": -2
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-074#t5#p2",
+      "game_id": "task-c-20260417-191531-074",
+      "turn": 5,
+      "player_id": "p2",
+      "skill_name": "Truthful_Action",
+      "winner": "p1",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_player_count": 4,
+        "hand_count": 5,
+        "death_probability": 0.16666666666666666
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.5,
+        0.0,
+        1.0,
+        0.625,
+        0.16666666666666666
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_players": [
+          "p2",
+          "p4",
+          "p1",
+          "p3"
+        ],
+        "pending_claim": {
+          "actor_id": "p3",
+          "claim_rank": "K",
+          "declared_count": 1
+        },
+        "private_hand": [
+          "K",
+          "A",
+          "Q",
+          "Q",
+          "K"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "K",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.26,
+        "value_action": 0.83,
+        "value_counterfactual": 0.57
+      },
+      "proxy": {
+        "phi": -0.005207747220993042,
+        "value_action": 0.22492018342018127,
+        "value_counterfactual": 0.23012793064117432
+      },
+      "phi_error": -0.26520774722099305,
+      "abs_phi_error": 0.26520774722099305,
+      "sign_mismatch": true,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.4,
+        "inventory_logic_conflict": -3
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-004#t20#p4",
+      "game_id": "task-c-20260417-191531-004",
+      "turn": 20,
+      "player_id": "p4",
+      "skill_name": "Truthful_Action",
+      "winner": "p2",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_player_count": 4,
+        "hand_count": 5,
+        "death_probability": 0.2
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.0,
+        0.0,
+        1.0,
+        0.625,
+        0.2
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_players": [
+          "p1",
+          "p4",
+          "p2",
+          "p3"
+        ],
+        "pending_claim": {
+          "actor_id": "p1",
+          "claim_rank": "A",
+          "declared_count": 2
+        },
+        "private_hand": [
+          "A",
+          "A",
+          "Q",
+          "K",
+          "K"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "A",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.22499999999999998,
+        "value_action": 0.495,
+        "value_counterfactual": 0.27
+      },
+      "proxy": {
+        "phi": 0.005298234522342682,
+        "value_action": 0.23237009346485138,
+        "value_counterfactual": 0.2270718589425087
+      },
+      "phi_error": -0.2197017654776573,
+      "abs_phi_error": 0.2197017654776573,
+      "sign_mismatch": false,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.4,
+        "inventory_logic_conflict": -2
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-010#t32#p2",
+      "game_id": "task-c-20260417-191531-010",
+      "turn": 32,
+      "player_id": "p2",
+      "skill_name": "Null_Probe_Skill",
+      "winner": "p2",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_player_count": 2,
+        "hand_count": 2,
+        "death_probability": 0.3333333333333333
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.0,
+        0.0,
+        0.5,
+        0.25,
+        0.3333333333333333
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_players": [
+          "p1",
+          "p2"
+        ],
+        "pending_claim": {
+          "actor_id": "p1",
+          "claim_rank": "A",
+          "declared_count": 2
+        },
+        "private_hand": [
+          "Q",
+          "Q"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "A",
+            "min_cards": 1,
+            "max_cards": 2
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": -0.27,
+        "value_action": 0.73,
+        "value_counterfactual": 1.0
+      },
+      "proxy": {
+        "phi": -0.05577024817466736,
+        "value_action": 0.4738110303878784,
+        "value_counterfactual": 0.5295812785625458
+      },
+      "phi_error": 0.21422975182533266,
+      "abs_phi_error": 0.21422975182533266,
+      "sign_mismatch": false,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.0,
+        "inventory_logic_conflict": -4
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-004#t12#p4",
+      "game_id": "task-c-20260417-191531-004",
+      "turn": 12,
+      "player_id": "p4",
+      "skill_name": "Logical_Skepticism",
+      "winner": "p2",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "Q",
+        "must_call_liar": false,
+        "alive_player_count": 4,
+        "hand_count": 4,
+        "death_probability": 0.16666666666666666
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        1.0,
+        0.0,
+        1.0,
+        0.5,
+        0.16666666666666666
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "Q",
+        "must_call_liar": false,
+        "alive_players": [
+          "p1",
+          "p4",
+          "p2",
+          "p3"
+        ],
+        "pending_claim": {
+          "actor_id": "p1",
+          "claim_rank": "Q",
+          "declared_count": 1
+        },
+        "private_hand": [
+          "K",
+          "K",
+          "K",
+          "K"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "Q",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": -0.15999999999999998,
+        "value_action": 0.25,
+        "value_counterfactual": 0.41
+      },
+      "proxy": {
+        "phi": 0.005661278963088989,
+        "value_action": 0.24813438951969147,
+        "value_counterfactual": 0.24247311055660248
+      },
+      "phi_error": 0.16566127896308896,
+      "abs_phi_error": 0.16566127896308896,
+      "sign_mismatch": true,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.0,
+        "inventory_logic_conflict": -5
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-011#t31#p2",
+      "game_id": "task-c-20260417-191531-011",
+      "turn": 31,
+      "player_id": "p2",
+      "skill_name": "Logical_Skepticism",
+      "winner": "p1",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_player_count": 3,
+        "hand_count": 5,
+        "death_probability": 0.16666666666666666
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.5,
+        0.0,
+        0.75,
+        0.625,
+        0.16666666666666666
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_players": [
+          "p4",
+          "p2",
+          "p1"
+        ],
+        "pending_claim": {
+          "actor_id": "p4",
+          "claim_rank": "K",
+          "declared_count": 1
+        },
+        "private_hand": [
+          "Q",
+          "A",
+          "K",
+          "K",
+          "A"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "K",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.16,
+        "value_action": 0.385,
+        "value_counterfactual": 0.225
+      },
+      "proxy": {
+        "phi": 0.008525043725967407,
+        "value_action": 0.34085074067115784,
+        "value_counterfactual": 0.33232569694519043
+      },
+      "phi_error": -0.1514749562740326,
+      "abs_phi_error": 0.1514749562740326,
+      "sign_mismatch": false,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.4,
+        "inventory_logic_conflict": -3
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-030#t28#p3",
+      "game_id": "task-c-20260417-191531-030",
+      "turn": 28,
+      "player_id": "p3",
+      "skill_name": "Calculated_Bluff",
+      "winner": "p4",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_player_count": 3,
+        "hand_count": 2,
+        "death_probability": 0.25
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.5,
+        0.0,
+        0.75,
+        0.25,
+        0.25
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_players": [
+          "p2",
+          "p4",
+          "p3"
+        ],
+        "pending_claim": {
+          "actor_id": "p4",
+          "claim_rank": "K",
+          "declared_count": 3
+        },
+        "private_hand": [
+          "A",
+          "Q"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "K",
+            "min_cards": 1,
+            "max_cards": 2
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": -0.15500000000000003,
+        "value_action": 0.125,
+        "value_counterfactual": 0.28
+      },
+      "proxy": {
+        "phi": -0.004080846905708313,
+        "value_action": 0.3150731921195984,
+        "value_counterfactual": 0.3191540390253067
+      },
+      "phi_error": 0.1509191530942917,
+      "abs_phi_error": 0.1509191530942917,
+      "sign_mismatch": false,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.0,
+        "inventory_logic_conflict": -3
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-015#t36#p1",
+      "game_id": "task-c-20260417-191531-015",
+      "turn": 36,
+      "player_id": "p1",
+      "skill_name": "Truthful_Action",
+      "winner": "p1",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_player_count": 3,
+        "hand_count": 5,
+        "death_probability": 0.2
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.5,
+        0.0,
+        0.75,
+        0.625,
+        0.2
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_players": [
+          "p4",
+          "p3",
+          "p1"
+        ],
+        "pending_claim": {
+          "actor_id": "p3",
+          "claim_rank": "K",
+          "declared_count": 3
+        },
+        "private_hand": [
+          "A",
+          "Q",
+          "K",
+          "Q",
+          "JOKER"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "K",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.03500000000000003,
+        "value_action": 0.9,
+        "value_counterfactual": 0.865
+      },
+      "proxy": {
+        "phi": -0.0834832489490509,
+        "value_action": 0.318573534488678,
+        "value_counterfactual": 0.4020567834377289
+      },
+      "phi_error": -0.11848324894905093,
+      "abs_phi_error": 0.11848324894905093,
+      "sign_mismatch": true,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.4,
+        "inventory_logic_conflict": -2
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-026#t22#p2",
+      "game_id": "task-c-20260417-191531-026",
+      "turn": 22,
+      "player_id": "p2",
+      "skill_name": "Null_Probe_Skill",
+      "winner": "p1",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "Q",
+        "must_call_liar": false,
+        "alive_player_count": 3,
+        "hand_count": 3,
+        "death_probability": 0.2
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        1.0,
+        0.0,
+        0.75,
+        0.375,
+        0.2
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "Q",
+        "must_call_liar": false,
+        "alive_players": [
+          "p2",
+          "p4",
+          "p1"
+        ],
+        "pending_claim": {
+          "actor_id": "p1",
+          "claim_rank": "Q",
+          "declared_count": 3
+        },
+        "private_hand": [
+          "K",
+          "K",
+          "A"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "Q",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.09999999999999999,
+        "value_action": 0.175,
+        "value_counterfactual": 0.075
+      },
+      "proxy": {
+        "phi": -0.008532851934432983,
+        "value_action": 0.3193899393081665,
+        "value_counterfactual": 0.3279227912425995
+      },
+      "phi_error": -0.10853285193443298,
+      "abs_phi_error": 0.10853285193443298,
+      "sign_mismatch": true,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.0,
+        "inventory_logic_conflict": -3
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-024#t2#p2",
+      "game_id": "task-c-20260417-191531-024",
+      "turn": 2,
+      "player_id": "p2",
+      "skill_name": "Logical_Skepticism",
+      "winner": "p3",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "Q",
+        "must_call_liar": false,
+        "alive_player_count": 4,
+        "hand_count": 5,
+        "death_probability": 0.16666666666666666
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        1.0,
+        0.0,
+        1.0,
+        0.625,
+        0.16666666666666666
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "Q",
+        "must_call_liar": false,
+        "alive_players": [
+          "p1",
+          "p3",
+          "p2",
+          "p4"
+        ],
+        "pending_claim": {
+          "actor_id": "p3",
+          "claim_rank": "Q",
+          "declared_count": 2
+        },
+        "private_hand": [
+          "K",
+          "Q",
+          "A",
+          "A",
+          "A"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "Q",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.06499999999999997,
+        "value_action": 0.235,
+        "value_counterfactual": 0.17
+      },
+      "proxy": {
+        "phi": 0.001292698085308075,
+        "value_action": 0.23939722776412964,
+        "value_counterfactual": 0.23810452967882156
+      },
+      "phi_error": -0.0637073019146919,
+      "abs_phi_error": 0.0637073019146919,
+      "sign_mismatch": false,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.2,
+        "inventory_logic_conflict": -3
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-003#t17#p3",
+      "game_id": "task-c-20260417-191531-003",
+      "turn": 17,
+      "player_id": "p3",
+      "skill_name": "Null_Probe_Skill",
+      "winner": "p1",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_player_count": 3,
+        "hand_count": 3,
+        "death_probability": 0.16666666666666666
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.5,
+        0.0,
+        0.75,
+        0.375,
+        0.16666666666666666
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_players": [
+          "p2",
+          "p1",
+          "p3"
+        ],
+        "pending_claim": {
+          "actor_id": "p1",
+          "claim_rank": "K",
+          "declared_count": 3
+        },
+        "private_hand": [
+          "A",
+          "A",
+          "A"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "K",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.075,
+        "value_action": 0.105,
+        "value_counterfactual": 0.03
+      },
+      "proxy": {
+        "phi": 0.0126570463180542,
+        "value_action": 0.34849250316619873,
+        "value_counterfactual": 0.33583545684814453
+      },
+      "phi_error": -0.0623429536819458,
+      "abs_phi_error": 0.0623429536819458,
+      "sign_mismatch": false,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.0,
+        "inventory_logic_conflict": -3
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-078#t9#p3",
+      "game_id": "task-c-20260417-191531-078",
+      "turn": 9,
+      "player_id": "p3",
+      "skill_name": "Logical_Skepticism",
+      "winner": "p4",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_player_count": 4,
+        "hand_count": 5,
+        "death_probability": 0.16666666666666666
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.0,
+        0.0,
+        1.0,
+        0.625,
+        0.16666666666666666
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_players": [
+          "p4",
+          "p2",
+          "p1",
+          "p3"
+        ],
+        "pending_claim": {
+          "actor_id": "p1",
+          "claim_rank": "A",
+          "declared_count": 2
+        },
+        "private_hand": [
+          "A",
+          "K",
+          "Q",
+          "Q",
+          "A"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "A",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": -0.065,
+        "value_action": 0.315,
+        "value_counterfactual": 0.38
+      },
+      "proxy": {
+        "phi": -0.0029466673731803894,
+        "value_action": 0.22768434882164001,
+        "value_counterfactual": 0.2306310161948204
+      },
+      "phi_error": 0.06205333262681961,
+      "abs_phi_error": 0.06205333262681961,
+      "sign_mismatch": false,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.4,
+        "inventory_logic_conflict": -2
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-010#t5#p1",
+      "game_id": "task-c-20260417-191531-010",
+      "turn": 5,
+      "player_id": "p1",
+      "skill_name": "Logical_Skepticism",
+      "winner": "p2",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_player_count": 4,
+        "hand_count": 4,
+        "death_probability": 0.16666666666666666
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.5,
+        0.0,
+        1.0,
+        0.5,
+        0.16666666666666666
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_players": [
+          "p4",
+          "p1",
+          "p3",
+          "p2"
+        ],
+        "pending_claim": {
+          "actor_id": "p4",
+          "claim_rank": "K",
+          "declared_count": 3
+        },
+        "private_hand": [
+          "Q",
+          "Q",
+          "A",
+          "A"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "K",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.0,
+        "value_action": 0.01,
+        "value_counterfactual": 0.01
+      },
+      "proxy": {
+        "phi": 0.059842027723789215,
+        "value_action": 0.34849250316619873,
+        "value_counterfactual": 0.2886504754424095
+      },
+      "phi_error": 0.059842027723789215,
+      "abs_phi_error": 0.059842027723789215,
+      "sign_mismatch": false,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.0,
+        "inventory_logic_conflict": -3
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-083#t56#p3",
+      "game_id": "task-c-20260417-191531-083",
+      "turn": 56,
+      "player_id": "p3",
+      "skill_name": "Aggressive_Deception",
+      "winner": "p1",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_player_count": 2,
+        "hand_count": 2,
+        "death_probability": 0.5
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.5,
+        0.0,
+        0.5,
+        0.25,
+        0.5
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_players": [
+          "p1",
+          "p3"
+        ],
+        "pending_claim": {
+          "actor_id": "p1",
+          "claim_rank": "K",
+          "declared_count": 3
+        },
+        "private_hand": [
+          "Q",
+          "Q"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "K",
+            "min_cards": 1,
+            "max_cards": 2
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.0050000000000000044,
+        "value_action": 0.17,
+        "value_counterfactual": 0.165
+      },
+      "proxy": {
+        "phi": 0.050618454813957214,
+        "value_action": 0.42542022466659546,
+        "value_counterfactual": 0.37480176985263824
+      },
+      "phi_error": 0.04561845481395721,
+      "abs_phi_error": 0.04561845481395721,
+      "sign_mismatch": false,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.0,
+        "inventory_logic_conflict": -3
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-067#t43#p1",
+      "game_id": "task-c-20260417-191531-067",
+      "turn": 43,
+      "player_id": "p1",
+      "skill_name": "Calculated_Bluff",
+      "winner": "p2",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_player_count": 3,
+        "hand_count": 1,
+        "death_probability": 1.0
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.5,
+        0.0,
+        0.75,
+        0.125,
+        1.0
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_players": [
+          "p1",
+          "p3",
+          "p2"
+        ],
+        "pending_claim": {
+          "actor_id": "p2",
+          "claim_rank": "K",
+          "declared_count": 1
+        },
+        "private_hand": [
+          "Q"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "K",
+            "min_cards": 1,
+            "max_cards": 1
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": -0.015,
+        "value_action": 0.075,
+        "value_counterfactual": 0.09
+      },
+      "proxy": {
+        "phi": 0.027769066393375397,
+        "value_action": 0.27322137355804443,
+        "value_counterfactual": 0.24545230716466904
+      },
+      "phi_error": 0.042769066393375396,
+      "abs_phi_error": 0.042769066393375396,
+      "sign_mismatch": true,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.0,
+        "inventory_logic_conflict": -5
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-062#t9#p1",
+      "game_id": "task-c-20260417-191531-062",
+      "turn": 9,
+      "player_id": "p1",
+      "skill_name": "Null_Probe_Skill",
+      "winner": "p1",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_player_count": 4,
+        "hand_count": 5,
+        "death_probability": 0.16666666666666666
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        0.5,
+        0.0,
+        1.0,
+        0.625,
+        0.16666666666666666
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_players": [
+          "p2",
+          "p1",
+          "p3",
+          "p4"
+        ],
+        "pending_claim": {
+          "actor_id": "p2",
+          "claim_rank": "K",
+          "declared_count": 1
+        },
+        "private_hand": [
+          "Q",
+          "K",
+          "K",
+          "A",
+          "A"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "K",
+            "min_cards": 1,
+            "max_cards": 3
+          },
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.0050000000000000044,
+        "value_action": 0.2,
+        "value_counterfactual": 0.195
+      },
+      "proxy": {
+        "phi": 0.0031280890107154846,
+        "value_action": 0.23203864693641663,
+        "value_counterfactual": 0.22891055792570114
+      },
+      "phi_error": -0.0018719109892845198,
+      "abs_phi_error": 0.0018719109892845198,
+      "sign_mismatch": false,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.4,
+        "inventory_logic_conflict": -3
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-012#t25#p2",
+      "game_id": "task-c-20260417-191531-012",
+      "turn": 25,
+      "player_id": "p2",
+      "skill_name": "Truthful_Action",
+      "winner": "p2",
+      "state_features": {
+        "phase": "turn_start",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_player_count": 2,
+        "hand_count": 5,
+        "death_probability": 0.2
+      },
+      "feature_vector_6d": [
+        0.0,
+        0.5,
+        0.0,
+        0.5,
+        0.625,
+        0.2
+      ],
+      "context": {
+        "phase": "turn_start",
+        "table_type": "K",
+        "must_call_liar": false,
+        "alive_players": [
+          "p3",
+          "p2"
+        ],
+        "pending_claim": null,
+        "private_hand": [
+          "K",
+          "A",
+          "Q",
+          "Q",
+          "A"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "K",
+            "min_cards": 1,
+            "max_cards": 3
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.0,
+        "value_action": 0.55,
+        "value_counterfactual": 0.55
+      },
+      "proxy": {
+        "phi": 0.0,
+        "value_action": 0.4960234761238098,
+        "value_counterfactual": 0.4960234761238098
+      },
+      "phi_error": 0.0,
+      "abs_phi_error": 0.0,
+      "sign_mismatch": false,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.2,
+        "inventory_logic_conflict": null
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-084#t1#p2",
+      "game_id": "task-c-20260417-191531-084",
+      "turn": 1,
+      "player_id": "p2",
+      "skill_name": "Truthful_Action",
+      "winner": "p4",
+      "state_features": {
+        "phase": "turn_start",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_player_count": 4,
+        "hand_count": 5,
+        "death_probability": 0.16666666666666666
+      },
+      "feature_vector_6d": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.625,
+        0.16666666666666666
+      ],
+      "context": {
+        "phase": "turn_start",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_players": [
+          "p3",
+          "p4",
+          "p1",
+          "p2"
+        ],
+        "pending_claim": null,
+        "private_hand": [
+          "K",
+          "K",
+          "JOKER",
+          "A",
+          "Q"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "A",
+            "min_cards": 1,
+            "max_cards": 3
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.0,
+        "value_action": 0.15,
+        "value_counterfactual": 0.15
+      },
+      "proxy": {
+        "phi": 0.0,
+        "value_action": 0.23649434745311737,
+        "value_counterfactual": 0.23649434745311737
+      },
+      "phi_error": 0.0,
+      "abs_phi_error": 0.0,
+      "sign_mismatch": false,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.4,
+        "inventory_logic_conflict": null
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-083#t39#p4",
+      "game_id": "task-c-20260417-191531-083",
+      "turn": 39,
+      "player_id": "p4",
+      "skill_name": "Truthful_Action",
+      "winner": "p1",
+      "state_features": {
+        "phase": "turn_start",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_player_count": 3,
+        "hand_count": 5,
+        "death_probability": 0.5
+      },
+      "feature_vector_6d": [
+        0.0,
+        0.0,
+        0.0,
+        0.75,
+        0.625,
+        0.5
+      ],
+      "context": {
+        "phase": "turn_start",
+        "table_type": "A",
+        "must_call_liar": false,
+        "alive_players": [
+          "p1",
+          "p4",
+          "p3"
+        ],
+        "pending_claim": null,
+        "private_hand": [
+          "JOKER",
+          "Q",
+          "K",
+          "K",
+          "JOKER"
+        ],
+        "legal_actions": [
+          {
+            "type": "play_claim",
+            "claim_rank": "A",
+            "min_cards": 1,
+            "max_cards": 3
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.0,
+        "value_action": 0.04,
+        "value_counterfactual": 0.04
+      },
+      "proxy": {
+        "phi": 0.0,
+        "value_action": 0.2904433608055115,
+        "value_counterfactual": 0.2904433608055115
+      },
+      "phi_error": 0.0,
+      "abs_phi_error": 0.0,
+      "sign_mismatch": false,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.4,
+        "inventory_logic_conflict": null
+      }
+    },
+    {
+      "key": "task-c-20260417-191531-048#t15#p3",
+      "game_id": "task-c-20260417-191531-048",
+      "turn": 15,
+      "player_id": "p3",
+      "skill_name": "Logical_Skepticism",
+      "winner": "p3",
+      "state_features": {
+        "phase": "response_window",
+        "table_type": "Q",
+        "must_call_liar": true,
+        "alive_player_count": 3,
+        "hand_count": 1,
+        "death_probability": 0.16666666666666666
+      },
+      "feature_vector_6d": [
+        0.6666666666666666,
+        1.0,
+        1.0,
+        0.75,
+        0.125,
+        0.16666666666666666
+      ],
+      "context": {
+        "phase": "response_window",
+        "table_type": "Q",
+        "must_call_liar": true,
+        "alive_players": [
+          "p4",
+          "p3",
+          "p1"
+        ],
+        "pending_claim": {
+          "actor_id": "p4",
+          "claim_rank": "Q",
+          "declared_count": 1
+        },
+        "private_hand": [
+          "A"
+        ],
+        "legal_actions": [
+          {
+            "type": "challenge"
+          }
+        ]
+      },
+      "rollout": {
+        "phi": 0.0,
+        "value_action": 0.8,
+        "value_counterfactual": 0.8
+      },
+      "proxy": {
+        "phi": 0.0,
+        "value_action": 0.34849250316619873,
+        "value_counterfactual": 0.34849250316619873
+      },
+      "phi_error": 0.0,
+      "abs_phi_error": 0.0,
+      "sign_mismatch": false,
+      "candidate_feature_preview": {
+        "hand_truth_ratio": 0.0,
+        "inventory_logic_conflict": -5
+      }
+    }
+  ]
+}

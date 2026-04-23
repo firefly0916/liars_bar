@@ -1,0 +1,37 @@
+{
+  "probe_summary": {
+    "skill_name": "Null_Probe_Skill",
+    "count": 399,
+    "phi_sum": -6.22,
+    "phi_avg": -0.015588972431077694,
+    "sample_count": 39900
+  },
+  "efficiency_summary": {
+    "sample_count": 100,
+    "mean_abs_error": 0.636,
+    "mean_signed_error": 0.2084,
+    "max_abs_error": 1.9
+  },
+  "symmetry_summary": {
+    "equivalent_group_count": 211,
+    "pair_count": 110659,
+    "mean_abs_diff": 0.12590851173424664,
+    "max_abs_diff": 1.23
+  },
+  "alignment_summary": {
+    "turns_checked": 20,
+    "sample_count": 1000,
+    "mean_abs_delta": 0.0,
+    "mean_signed_delta": 0.0,
+    "max_abs_delta": 0.0
+  },
+  "phi_curve_summary": {
+    "exported": true,
+    "game_id": "task-c-20260417-191531-001",
+    "turn_count": 43,
+    "final_cumulative_phi": 0.8900000000000001,
+    "max_abs_jump": 0.38,
+    "max_abs_jump_turn": 40,
+    "path": "logs/task_d_probe/single_game_phi_curve.csv"
+  }
+}

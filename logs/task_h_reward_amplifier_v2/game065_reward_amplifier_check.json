@@ -1,0 +1,13 @@
+{
+  "game_id": "task-c-20260417-191531-065",
+  "winner": "p3",
+  "baseline_mode": "random_legal_agent",
+  "rollout_samples": 200,
+  "phi_by_player": {
+    "p4": 0.09,
+    "p3": -0.029999999999999916,
+    "p2": -0.045,
+    "p1": -0.04
+  },
+  "winner_phi": -0.029999999999999916
+}

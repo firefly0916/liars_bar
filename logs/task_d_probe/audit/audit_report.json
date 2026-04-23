@@ -1,0 +1,75 @@
+{
+  "single_case_summary": {
+    "game_id": "task-c-20260417-191531-065",
+    "winner": "p3",
+    "turn_count": 9,
+    "winner_action_count": 4,
+    "winner_phi_sum": 0.030000000000000027,
+    "winner_target": 0.75,
+    "winner_efficiency_error": -0.72,
+    "single_legal_action_turn_count": 4,
+    "single_legal_action_mean_abs_phi": 0.0,
+    "single_legal_action_max_abs_phi": 0.0,
+    "full_csv": "logs/task_d_probe/audit/single_case_phi_full.csv",
+    "winner_csv": "logs/task_d_probe/audit/single_case_phi_winner.csv"
+  },
+  "n200_five_games": {
+    "log_files": [
+      "logs/task_d_probe/probe_logs/task-c-20260417-191531-065.jsonl",
+      "logs/task_d_probe/probe_logs/task-c-20260417-191531-029.jsonl",
+      "logs/task_d_probe/probe_logs/task-c-20260417-191531-043.jsonl",
+      "logs/task_d_probe/probe_logs/task-c-20260417-191531-096.jsonl",
+      "logs/task_d_probe/probe_logs/task-c-20260417-191531-044.jsonl"
+    ],
+    "attribution_count": 63,
+    "per_game_efficiency_metric": {
+      "sample_count": 5,
+      "mean_abs_error": 0.667,
+      "mean_signed_error": -0.667,
+      "max_abs_error": 0.89
+    },
+    "winner_efficiency_metric": {
+      "sample_count": 5,
+      "mean_abs_error": 0.643,
+      "mean_signed_error": -0.643,
+      "max_abs_error": 0.725
+    },
+    "winner_breakdown": [
+      {
+        "game_id": "task-c-20260417-191531-065",
+        "winner": "p3",
+        "winner_phi_sum": 0.030000000000000027,
+        "winner_efficiency_error": -0.72
+      },
+      {
+        "game_id": "task-c-20260417-191531-029",
+        "winner": "p4",
+        "winner_phi_sum": 0.235,
+        "winner_efficiency_error": -0.515
+      },
+      {
+        "game_id": "task-c-20260417-191531-043",
+        "winner": "p4",
+        "winner_phi_sum": 0.029999999999999916,
+        "winner_efficiency_error": -0.7200000000000001
+      },
+      {
+        "game_id": "task-c-20260417-191531-096",
+        "winner": "p2",
+        "winner_phi_sum": 0.025000000000000022,
+        "winner_efficiency_error": -0.725
+      },
+      {
+        "game_id": "task-c-20260417-191531-044",
+        "winner": "p2",
+        "winner_phi_sum": 0.21499999999999997,
+        "winner_efficiency_error": -0.535
+      }
+    ],
+    "baseline_consistency": {
+      "single_legal_action_turn_count": 26,
+      "single_legal_action_mean_abs_phi": 0.0,
+      "single_legal_action_max_abs_phi": 0.0
+    }
+  }
+}

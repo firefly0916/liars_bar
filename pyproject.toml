@@ -1,0 +1,21 @@
+[project]
+name = "liars-game-engine"
+version = "0.1.0"
+description = "Async Liar's Bar experiment engine for multi-agent LLM research"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "pydantic>=2.0",
+  "python-dotenv>=1.0",
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.23",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+asyncio_mode = "auto"

@@ -1,0 +1,5 @@
+turn,player_id,skill_name,legal_action_count,phi,winner_cumulative_phi
+2,p3,Logical_Skepticism,2,-0.025,-0.025
+3,p3,Truthful_Action,1,0.0,-0.025
+7,p3,Logical_Skepticism,2,0.055,0.03
+8,p3,Strategic_Drain,1,0.0,0.03

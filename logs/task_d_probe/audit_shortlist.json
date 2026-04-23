@@ -1,0 +1,264 @@
+{
+  "wins": [
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-065.jsonl",
+      "game_id": "task-c-20260417-191531-065",
+      "winner": "p3",
+      "turns": 9,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 2,
+        "p2": 1,
+        "p3": 4,
+        "p4": 2
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-029.jsonl",
+      "game_id": "task-c-20260417-191531-029",
+      "winner": "p4",
+      "turns": 10,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 2,
+        "p2": 4,
+        "p3": 1,
+        "p4": 3
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-043.jsonl",
+      "game_id": "task-c-20260417-191531-043",
+      "winner": "p4",
+      "turns": 11,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 2,
+        "p2": 4,
+        "p3": 1,
+        "p4": 4
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-096.jsonl",
+      "game_id": "task-c-20260417-191531-096",
+      "winner": "p2",
+      "turns": 16,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 3,
+        "p2": 5,
+        "p3": 1,
+        "p4": 7
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-044.jsonl",
+      "game_id": "task-c-20260417-191531-044",
+      "winner": "p2",
+      "turns": 17,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 5,
+        "p2": 7,
+        "p3": 1,
+        "p4": 4
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-039.jsonl",
+      "game_id": "task-c-20260417-191531-039",
+      "winner": "p2",
+      "turns": 18,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 3,
+        "p2": 5,
+        "p3": 6,
+        "p4": 4
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-055.jsonl",
+      "game_id": "task-c-20260417-191531-055",
+      "winner": "p1",
+      "turns": 19,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 5,
+        "p2": 6,
+        "p3": 1,
+        "p4": 7
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-032.jsonl",
+      "game_id": "task-c-20260417-191531-032",
+      "winner": "p1",
+      "turns": 20,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 7,
+        "p2": 5,
+        "p3": 1,
+        "p4": 7
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-064.jsonl",
+      "game_id": "task-c-20260417-191531-064",
+      "winner": "p2",
+      "turns": 20,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 7,
+        "p2": 7,
+        "p3": 4,
+        "p4": 2
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-070.jsonl",
+      "game_id": "task-c-20260417-191531-070",
+      "winner": "p2",
+      "turns": 21,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 6,
+        "p2": 6,
+        "p3": 6,
+        "p4": 3
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-071.jsonl",
+      "game_id": "task-c-20260417-191531-071",
+      "winner": "p2",
+      "turns": 22,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 8,
+        "p2": 7,
+        "p3": 1,
+        "p4": 6
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-049.jsonl",
+      "game_id": "task-c-20260417-191531-049",
+      "winner": "p3",
+      "turns": 23,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 1,
+        "p2": 10,
+        "p3": 9,
+        "p4": 3
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-037.jsonl",
+      "game_id": "task-c-20260417-191531-037",
+      "winner": "p3",
+      "turns": 24,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 8,
+        "p2": 6,
+        "p3": 7,
+        "p4": 3
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-066.jsonl",
+      "game_id": "task-c-20260417-191531-066",
+      "winner": "p4",
+      "turns": 24,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 7,
+        "p2": 5,
+        "p3": 5,
+        "p4": 7
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-003.jsonl",
+      "game_id": "task-c-20260417-191531-003",
+      "winner": "p1",
+      "turns": 25,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 7,
+        "p2": 8,
+        "p3": 6,
+        "p4": 4
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-082.jsonl",
+      "game_id": "task-c-20260417-191531-082",
+      "winner": "p3",
+      "turns": 25,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 6,
+        "p2": 2,
+        "p3": 10,
+        "p4": 7
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-098.jsonl",
+      "game_id": "task-c-20260417-191531-098",
+      "winner": "p1",
+      "turns": 25,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 12,
+        "p2": 2,
+        "p3": 1,
+        "p4": 10
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-077.jsonl",
+      "game_id": "task-c-20260417-191531-077",
+      "winner": "p1",
+      "turns": 26,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 8,
+        "p2": 3,
+        "p3": 11,
+        "p4": 4
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-084.jsonl",
+      "game_id": "task-c-20260417-191531-084",
+      "winner": "p4",
+      "turns": 26,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 7,
+        "p2": 6,
+        "p3": 5,
+        "p4": 8
+      }
+    },
+    {
+      "file": "logs/task_d_probe/probe_logs/task-c-20260417-191531-089.jsonl",
+      "game_id": "task-c-20260417-191531-089",
+      "winner": "p4",
+      "turns": 26,
+      "unique_players": 4,
+      "player_counts": {
+        "p1": 7,
+        "p2": 10,
+        "p3": 3,
+        "p4": 6
+      }
+    }
+  ]
+}

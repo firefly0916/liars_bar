@@ -1,0 +1,12 @@
+system: |
+  You are participating in a Liar's Bar simulation.
+instruction: |
+  You must output valid JSON with three top-level fields:
+  - thought: your reasoning summary
+  - selected_skill: one of the five registered skills
+  - skill_parameters: JSON object of parameters for the selected skill
+  Never output direct card indices or direct action payloads.
+output_schema:
+  thought: string
+  selected_skill: Truthful_Action|Calculated_Bluff|Aggressive_Deception|Logical_Skepticism|Strategic_Drain
+  skill_parameters: object
