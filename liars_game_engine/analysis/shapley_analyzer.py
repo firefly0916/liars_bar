@@ -16,6 +16,8 @@ import torch
 from liars_game_engine.agents.factory import build_agents
 from liars_game_engine.analysis.train_value_proxy import (
     VALUE_PROXY_INPUT_DIM,
+    VALUE_PROXY_TARGET_PHI,
+    VALUE_PROXY_TARGET_WINNER,
     ValueProxyMLP,
     build_value_proxy_feature_context,
     encode_value_proxy_features,
@@ -115,7 +117,12 @@ def _build_state_features_from_observation(observation: dict[str, object], playe
 
 
 class ProxyValuePredictor:
-    def __init__(self, model_path: Path | str, device: str | torch.device | None = None) -> None:
+    def __init__(
+        self,
+        model_path: Path | str,
+        device: str | torch.device | None = None,
+        output_mode: str = VALUE_PROXY_TARGET_WINNER,
+    ) -> None:
         """作用: 加载训练好的价值代理模型，用于快速状态胜率估计。
 
         输入:
@@ -131,7 +138,12 @@ class ProxyValuePredictor:
 
         self.device = torch.device(resolved_device)
         self.model_path = Path(model_path)
-        self.model = ValueProxyMLP(input_dim=VALUE_PROXY_INPUT_DIM, hidden_dim=64).to(self.device)
+        self.output_mode = output_mode
+        self.model = ValueProxyMLP(
+            input_dim=VALUE_PROXY_INPUT_DIM,
+            hidden_dim=64,
+            output_mode=output_mode,
+        ).to(self.device)
         state_dict = torch.load(self.model_path, map_location=self.device)
         self.model.load_state_dict(state_dict)
         self.model.eval()
@@ -145,6 +157,8 @@ class ProxyValuePredictor:
         features = torch.tensor([encoded], dtype=torch.float32, device=self.device)
         with torch.no_grad():
             prediction = self.model(features).item()
+        if self.output_mode == VALUE_PROXY_TARGET_PHI:
+            return max(-1.0, min(1.0, float(prediction)))
         return max(0.0, min(1.0, float(prediction)))
 
 
@@ -800,6 +814,66 @@ class ShapleyAnalyzer:
             "proxy_elapsed_seconds": proxy_elapsed,
             "rollout_samples": self.rollout_samples,
             "alignment_passed": correlation > 0.75,
+        }
+
+    def run_direct_phi_alignment(
+        self,
+        log_paths: list[Path],
+        predictor: ProxyValuePredictor | object,
+        sample_size: int = 20,
+        sample_seed: int = 42,
+    ) -> dict[str, float | int | bool | str]:
+        sampled = self._sample_alignment_trajectories(
+            log_paths=log_paths,
+            sample_size=max(1, int(sample_size)),
+            sample_seed=sample_seed,
+        )
+
+        winner_lookup = {game.game_id: game.winner for game in LogIterator(log_paths).iter_games()}
+
+        rollout_results: list[ShapleyAttribution] = []
+        start_rollout = time.perf_counter()
+        for trajectory in sampled:
+            attribution = self.attribute_step_rollout(trajectory=trajectory, winner=winner_lookup.get(trajectory.game_id))
+            if attribution is not None:
+                rollout_results.append(attribution)
+        rollout_elapsed = max(0.0, time.perf_counter() - start_rollout)
+
+        predicted_by_key: dict[tuple[str, int, str], float] = {}
+        start_proxy = time.perf_counter()
+        for trajectory in sampled:
+            feature_context = self._build_proxy_feature_context(trajectory=trajectory, action=trajectory.action)
+            if feature_context is None:
+                continue
+            predicted_by_key[(trajectory.game_id, trajectory.turn, trajectory.player_id)] = float(
+                predictor.predict_state_features(feature_context)
+            )
+        proxy_elapsed = max(0.0, time.perf_counter() - start_proxy)
+
+        rollout_by_key = {(item.game_id, item.turn, item.player_id): item for item in rollout_results}
+        paired_keys = sorted(set(rollout_by_key) & set(predicted_by_key))
+        rollout_phi = [rollout_by_key[key].phi for key in paired_keys]
+        proxy_phi = [predicted_by_key[key] for key in paired_keys]
+
+        mae = (
+            sum(abs(left - right) for left, right in zip(rollout_phi, proxy_phi)) / len(paired_keys)
+            if paired_keys
+            else 0.0
+        )
+        correlation = self._pearson_correlation(rollout_phi, proxy_phi)
+        speedup_ratio = rollout_elapsed / max(proxy_elapsed, 1e-9)
+
+        return {
+            "sample_size": len(paired_keys),
+            "requested_sample_size": max(1, int(sample_size)),
+            "pearson_correlation": correlation,
+            "mae": mae,
+            "speedup_ratio": speedup_ratio,
+            "rollout_elapsed_seconds": rollout_elapsed,
+            "proxy_elapsed_seconds": proxy_elapsed,
+            "rollout_samples": self.rollout_samples,
+            "alignment_passed": correlation > 0.60,
+            "prediction_mode": "direct_phi",
         }
 
     @staticmethod

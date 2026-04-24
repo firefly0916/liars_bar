@@ -25,6 +25,7 @@ from liars_game_engine.analysis.shapley_analyzer import (
 )
 from liars_game_engine.analysis.train_value_proxy import (
     VALUE_PROXY_INPUT_DIM,
+    VALUE_PROXY_TARGET_PHI,
     ValueProxyMLP,
     _build_feature_vector,
     build_value_proxy_feature_context,
@@ -252,6 +253,97 @@ class ShapleyAnalyzerTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(len(samples), 3)
         self.assertEqual({sample.game_id for sample in samples}, {"valid"})
+
+    def test_load_value_samples_prefers_phi_and_shapley_labels_over_winner_targets(self) -> None:
+        """作用: 验证 value proxy 训练样本优先使用逐条 phi/shapley_value 标签。"""
+        labeled_records = [
+            {
+                "turn": 1,
+                "player_id": "p1",
+                "phi": 0.7,
+                "state_features": {
+                    "phase": "turn_start",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_player_count": 2,
+                    "hand_count": 3,
+                    "death_probability": 0.0,
+                },
+                "observation": {
+                    "player_id": "p1",
+                    "phase": "turn_start",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_players": ["p1", "p2"],
+                    "private_hand": ["A", "K", "Q"],
+                    "player_states": {"p1": {"death_probability": 0.0}},
+                    "pending_claim": None,
+                },
+                "action": {"type": "play_claim", "cards": ["A"]},
+                "step_result": {"events": []},
+            },
+            {
+                "turn": 2,
+                "player_id": "p2",
+                "shapley_value": 0.2,
+                "state_features": {
+                    "phase": "response_window",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_player_count": 2,
+                    "hand_count": 3,
+                    "death_probability": 0.0,
+                },
+                "observation": {
+                    "player_id": "p2",
+                    "phase": "response_window",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_players": ["p1", "p2"],
+                    "private_hand": ["A", "K", "Q"],
+                    "player_states": {"p2": {"death_probability": 0.0}},
+                    "pending_claim": {"declared_count": 1},
+                },
+                "action": {"type": "challenge", "cards": []},
+                "step_result": {"events": []},
+            },
+            {
+                "turn": 3,
+                "player_id": "p2",
+                "phi": 0.4,
+                "state_features": {
+                    "phase": "resolution",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_player_count": 1,
+                    "hand_count": 2,
+                    "death_probability": 0.0,
+                },
+                "observation": {
+                    "player_id": "p2",
+                    "phase": "resolution",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_players": ["p2"],
+                    "private_hand": ["A", "K"],
+                    "player_states": {"p2": {"death_probability": 0.0}},
+                    "pending_claim": None,
+                },
+                "action": {"type": "pass", "cards": []},
+                "step_result": {"events": []},
+            },
+        ]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_path = Path(temp_dir) / "labeled.jsonl"
+            log_path.write_text(
+                "\n".join(json.dumps(record, ensure_ascii=False) for record in labeled_records),
+                encoding="utf-8",
+            )
+
+            samples = load_value_samples(Path(temp_dir))
+
+        self.assertEqual([sample.target for sample in samples], [0.7, 0.2, 0.4])
 
     def test_counterfactual_action_excludes_logged_action(self) -> None:
         """作用: 验证反事实动作采样不会回退到原日志动作。
@@ -786,6 +878,107 @@ class ShapleyAnalyzerTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("alignment_passed", report)
         self.assertGreater(report["speedup_ratio"], 1.0)
         json.dumps(report, ensure_ascii=False)
+
+    def test_run_direct_phi_alignment_compares_predicted_phi_to_rollout_phi(self) -> None:
+        settings = self._make_settings()
+        analyzer = ShapleyAnalyzer(settings=settings, rollout_samples=3, rollout_policy="random", max_workers=1)
+
+        sampled = [
+            TurnTrajectory(
+                game_id="g1",
+                turn=index + 1,
+                player_id="p1",
+                observation={"player_id": "p1"},
+                action=ActionModel(type="challenge"),
+                skill_name="Skill",
+                skill_parameters={},
+                checkpoint_format="pickle_base64_v1",
+                checkpoint_payload="payload",
+            )
+            for index in range(3)
+        ]
+
+        def _make_attr(turn: int, phi: float) -> ShapleyAttribution:
+            return ShapleyAttribution(
+                game_id="g1",
+                turn=turn,
+                player_id="p1",
+                skill_name="Skill",
+                state_feature="phase=turn_start|table=A|risk=0-1/6|must_call_liar=False",
+                death_prob_bucket="0-1/6",
+                winner="p1",
+                value_action=0.0,
+                value_counterfactual=0.0,
+                phi=phi,
+                rollout_samples=3,
+            )
+
+        class FakePredictor:
+            def predict_state_features(self, state_features: dict[str, object]) -> float:
+                return float(state_features["predicted_phi"])
+
+        with patch.object(ShapleyAnalyzer, "_sample_alignment_trajectories", return_value=sampled), patch.object(
+            ShapleyAnalyzer,
+            "attribute_step_rollout",
+            side_effect=[_make_attr(1, 0.20), _make_attr(2, -0.10), _make_attr(3, 0.40)],
+        ), patch.object(
+            ShapleyAnalyzer,
+            "_build_proxy_feature_context",
+            side_effect=[
+                {"predicted_phi": 0.22},
+                {"predicted_phi": -0.12},
+                {"predicted_phi": 0.35},
+            ],
+        ), patch(
+            "liars_game_engine.analysis.shapley_analyzer.LogIterator.iter_games",
+            return_value=[],
+        ), patch(
+            "liars_game_engine.analysis.shapley_analyzer.time.perf_counter",
+            side_effect=[0.0, 6.0, 10.0, 11.0],
+        ):
+            report = analyzer.run_direct_phi_alignment(
+                log_paths=[Path("logs/task_d_probe/probe_logs/task-c-20260417-174210-001.jsonl")],
+                predictor=FakePredictor(),
+                sample_size=3,
+                sample_seed=7,
+            )
+
+        self.assertEqual(report["sample_size"], 3)
+        self.assertIn("pearson_correlation", report)
+        self.assertIn("mae", report)
+        self.assertGreater(report["pearson_correlation"], 0.9)
+
+    def test_load_value_samples_prefers_phi_target(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_path = Path(temp_dir) / "g1.jsonl"
+            records = []
+            for turn in (1, 2, 3):
+                records.append(
+                    {
+                        "turn": turn,
+                        "player_id": "p2",
+                        "observation": {
+                            "player_id": "p2",
+                            "phase": "response_window",
+                            "alive_players": ["p1", "p2"],
+                            "private_hand": ["K", "Q"],
+                            "pending_claim": {"declared_count": 1},
+                            "table_type": "K",
+                            "player_states": {"p2": {"death_probability": 0.25}},
+                        },
+                        "action": {"type": "challenge", "cards": []},
+                        "phi": -0.375,
+                    }
+                )
+            log_path.write_text(
+                "\n".join(json.dumps(record) for record in records) + "\n",
+                encoding="utf-8",
+            )
+
+            samples = load_value_samples(Path(temp_dir))
+
+        self.assertEqual(len(samples), 3)
+        self.assertEqual([round(sample.target, 6) for sample in samples], [-0.375, -0.375, -0.375])
 
 
 if __name__ == "__main__":

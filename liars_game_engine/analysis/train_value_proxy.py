@@ -27,6 +27,9 @@ TABLE_INDEX = {
     "K": 1.0,
     "Q": 2.0,
 }
+VALUE_PROXY_TARGET_WINNER = "winner"
+VALUE_PROXY_TARGET_PHI = "phi"
+VALUE_PROXY_TARGET_AUTO = "auto"
 VALUE_PROXY_INPUT_DIM = 8
 DEFAULT_VALUE_PROXY_EPOCHS = 40
 TRUTHFUL_DECK_CAP = 8.0
@@ -40,19 +43,27 @@ class ValueSample:
 
 
 class ValueProxyMLP(nn.Module):
-    def __init__(self, input_dim: int = VALUE_PROXY_INPUT_DIM, hidden_dim: int = 64) -> None:
+    def __init__(
+        self,
+        input_dim: int = VALUE_PROXY_INPUT_DIM,
+        hidden_dim: int = 64,
+        output_mode: str = VALUE_PROXY_TARGET_WINNER,
+    ) -> None:
         super().__init__()
-        self.network = nn.Sequential(
+        self.output_mode = output_mode
+        self.backbone = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
-            nn.Linear(hidden_dim // 2, 1),
-            nn.Sigmoid(),
         )
+        self.head = nn.Linear(hidden_dim // 2, 1)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        return self.network(inputs)
+        raw = self.head(self.backbone(inputs))
+        if self.output_mode == VALUE_PROXY_TARGET_PHI:
+            return torch.tanh(raw)
+        return torch.sigmoid(raw)
 
 
 def _safe_float(value: object, default: float = 0.0) -> float:
@@ -227,7 +238,26 @@ def encode_value_proxy_features(state_features: dict[str, object]) -> list[float
     return _build_feature_vector(state_features)
 
 
-def load_value_samples(log_root: Path) -> list[ValueSample]:
+def _extract_value_target(
+    record: dict[str, object],
+    winner: str | None,
+    player_id: str,
+    target_mode: str,
+) -> float | None:
+    if target_mode in {VALUE_PROXY_TARGET_PHI, VALUE_PROXY_TARGET_AUTO}:
+        for label_key in ("shapley_value", "phi"):
+            label = record.get(label_key)
+            if label is None:
+                continue
+            try:
+                return float(label)
+            except (TypeError, ValueError):
+                continue
+
+    return 1.0 if (winner is not None and player_id == winner) else 0.0
+
+
+def load_value_samples(log_root: Path, target_mode: str = VALUE_PROXY_TARGET_AUTO) -> list[ValueSample]:
     samples: list[ValueSample] = []
     log_paths = sorted(log_root.rglob("*.jsonl"))
     if not log_paths:
@@ -271,7 +301,14 @@ def load_value_samples(log_root: Path) -> list[ValueSample]:
                 player_id=player_id,
                 action=record.get("action"),
             )
-            target = 1.0 if (winner is not None and player_id == winner) else 0.0
+            target = _extract_value_target(
+                record=record,
+                winner=winner,
+                player_id=player_id,
+                target_mode=target_mode,
+            )
+            if target is None:
+                continue
             samples.append(
                 ValueSample(
                     game_id=game_id,
@@ -283,10 +320,13 @@ def load_value_samples(log_root: Path) -> list[ValueSample]:
     return samples
 
 
-def load_value_samples_from_roots(log_roots: Iterable[Path]) -> list[ValueSample]:
+def load_value_samples_from_roots(
+    log_roots: Iterable[Path],
+    target_mode: str = VALUE_PROXY_TARGET_AUTO,
+) -> list[ValueSample]:
     samples: list[ValueSample] = []
     for log_root in log_roots:
-        samples.extend(load_value_samples(Path(log_root)))
+        samples.extend(load_value_samples(Path(log_root), target_mode=target_mode))
     return samples
 
 
@@ -344,6 +384,7 @@ def train_value_proxy(
     output_dir: Path,
     log_root: Path | None = None,
     log_roots: Iterable[Path] | None = None,
+    target_mode: str = VALUE_PROXY_TARGET_AUTO,
     val_ratio: float = 0.2,
     epochs: int = DEFAULT_VALUE_PROXY_EPOCHS,
     batch_size: int = 128,
@@ -361,9 +402,9 @@ def train_value_proxy(
             raise RuntimeError("Either log_root or log_roots must be provided")
         resolved_log_roots = [Path(log_root)]
 
-    samples = load_value_samples_from_roots(resolved_log_roots)
+    samples = load_value_samples_from_roots(resolved_log_roots, target_mode=target_mode)
     if not samples:
-        raise RuntimeError(f"No samples found under log roots: {resolved_log_roots}")
+        raise RuntimeError(f"No samples found under log roots: {resolved_log_roots} for target_mode={target_mode}")
 
     train_samples, val_samples = split_train_val(samples=samples, val_ratio=val_ratio, seed=seed)
     if not train_samples or not val_samples:
@@ -373,7 +414,8 @@ def train_value_proxy(
     val_dataset = _build_dataset(val_samples)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = ValueProxyMLP(input_dim=VALUE_PROXY_INPUT_DIM, hidden_dim=64).to(device)
+    output_mode = VALUE_PROXY_TARGET_PHI if target_mode == VALUE_PROXY_TARGET_PHI else VALUE_PROXY_TARGET_WINNER
+    model = ValueProxyMLP(input_dim=VALUE_PROXY_INPUT_DIM, hidden_dim=64, output_mode=output_mode).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.MSELoss()
 
@@ -427,6 +469,7 @@ def train_value_proxy(
         "val_mse": float(final_val_mse),
         "best_val_mse": float(best_val_mse),
         "input_dim": VALUE_PROXY_INPUT_DIM,
+        "target_mode": target_mode,
         "model_path": str(model_path),
     }
     metrics_path.write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")

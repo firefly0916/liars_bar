@@ -11,7 +11,12 @@ from liars_game_engine.analysis.shapley_analyzer import ProxyValuePredictor, Sha
 from liars_game_engine.analysis.task_c_runner import generate_baseline_logs
 from liars_game_engine.analysis.task_d_axiomatic_runner import _build_probe_experiment_settings
 from liars_game_engine.analysis.task_i_proxy_runner import _select_latest_probe_logs
-from liars_game_engine.analysis.train_value_proxy import DEFAULT_VALUE_PROXY_EPOCHS, train_value_proxy
+from liars_game_engine.analysis.train_value_proxy import (
+    DEFAULT_VALUE_PROXY_EPOCHS,
+    VALUE_PROXY_TARGET_PHI,
+    VALUE_PROXY_TARGET_WINNER,
+    train_value_proxy,
+)
 from liars_game_engine.config.loader import load_settings
 from liars_game_engine.config.schema import AppSettings
 
@@ -75,6 +80,7 @@ def run_proxy_alignment_for_model(
     settings: AppSettings,
     log_paths: list[Path],
     model_path: str | Path,
+    target_mode: str = VALUE_PROXY_TARGET_WINNER,
     rollout_samples: int = 200,
     sample_size: int = 20,
     sample_seed: int = 42,
@@ -88,7 +94,14 @@ def run_proxy_alignment_for_model(
         rollout_policy="random",
         max_workers=max(1, analyzer_workers),
     )
-    predictor = ProxyValuePredictor(model_path=model_path)
+    predictor = ProxyValuePredictor(model_path=model_path, output_mode=target_mode)
+    if target_mode == VALUE_PROXY_TARGET_PHI:
+        return analyzer.run_direct_phi_alignment(
+            log_paths=log_paths,
+            predictor=predictor,
+            sample_size=sample_size,
+            sample_seed=sample_seed,
+        )
     return analyzer.run_proxy_alignment(
         log_paths=log_paths,
         predictor=predictor,
@@ -105,6 +118,7 @@ def run_task_l_proxy_refine_pipeline(
     negative_probe_probability: float = 0.85,
     negative_batch_game_count: int = 100,
     training_epochs: int = DEFAULT_VALUE_PROXY_EPOCHS,
+    target_mode: str = VALUE_PROXY_TARGET_PHI,
     alignment_game_count: int = 100,
     alignment_sample_size: int = 20,
     alignment_sample_seed: int = 42,
@@ -132,11 +146,13 @@ def run_task_l_proxy_refine_pipeline(
     elite_metrics = train_value_proxy(
         log_root=elite_log_root_path,
         output_dir=elite_model_dir,
+        target_mode=target_mode,
         epochs=training_epochs,
     )
     mixed_metrics = train_value_proxy(
         log_roots=[elite_log_root_path, Path(negative_summary["negative_log_dir"])],
         output_dir=mixed_model_dir,
+        target_mode=target_mode,
         epochs=training_epochs,
         model_filename="value_proxy_mlp_v2.pt",
         metrics_filename="value_proxy_metrics_v2.json",
@@ -150,6 +166,7 @@ def run_task_l_proxy_refine_pipeline(
         settings=task_settings,
         log_paths=alignment_logs,
         model_path=elite_metrics["model_path"],
+        target_mode=target_mode,
         rollout_samples=rollout_samples,
         sample_size=alignment_sample_size,
         sample_seed=alignment_sample_seed,
@@ -159,6 +176,7 @@ def run_task_l_proxy_refine_pipeline(
         settings=task_settings,
         log_paths=alignment_logs,
         model_path=mixed_metrics["model_path"],
+        target_mode=target_mode,
         rollout_samples=rollout_samples,
         sample_size=alignment_sample_size,
         sample_seed=alignment_sample_seed,
@@ -172,6 +190,7 @@ def run_task_l_proxy_refine_pipeline(
         "negative_record_count": int(negative_summary["record_count"]),
         "negative_game_count": int(negative_summary["game_count"]),
         "negative_probe_probability": float(negative_probe_probability),
+        "target_mode": target_mode,
         "elite_model_path": str(elite_metrics["model_path"]),
         "mixed_model_path": str(mixed_metrics["model_path"]),
         "elite_val_mse": float(elite_metrics.get("val_mse", 0.0)),
