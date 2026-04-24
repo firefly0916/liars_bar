@@ -26,10 +26,14 @@ dev = [
 llm = [
   "openai>=1.0",
   "langchain-openai>=0.1",
+  "transformers>=4.40",
+  "accelerate>=0.30",
 ]
 server = [
   "openai>=1.0",
   "langchain-openai>=0.1",
+  "transformers>=4.40",
+  "accelerate>=0.30",
   "vllm>=0.8",
 ]
 
