@@ -63,7 +63,7 @@
   - [~] Phase 5D: Proxy-based Attribution（代理模型快速归因 + 对齐校验）。
     - [x] 已实现 `ProxyValuePredictor`、`attribute_step_proxy`、`proxy_alignment_report.json` 与 `credit_report_proxy.csv` 导出。
     - [~] 已从 6 维升级到 8 维（新增 `hand_truth_ratio` 与 `action_consistency_score`），并复用同一编码函数贯通训练/推理。
-    - [ ] 8 维代理仍未通过对齐门槛：当前 `val_mse=0.2047`、`pearson=0.3339`，未达到 `MSE < 0.15` 与 `Pearson > 0.6` 的目标，故仍不得替代物理 rollout 归因。
+    - [ ] 8 维代理仍未通过对齐门槛：当前 elite `val_mse=0.2047`、`pearson=0.3339`，mixed `val_mse=0.2088`、`pearson=0.4249`，未达到 `MSE < 0.15` 与 `Pearson > 0.6` 的目标，故仍不得替代物理 rollout 归因。
     - [~] 已完成法医诊断：`proxy_forensics_report.json` 复原了 Task I 的 20 个对齐点；前三个离群点全部位于 `response_window`，且都需要“当前声明 + 手牌构成”才能解释其真实价值。
 
 ## 9. 后续开发注意事项
@@ -90,3 +90,4 @@
 - Task K 现已具备独立入口 `liars_game_engine.analysis.task_k_gold_runner`：默认配置为 4 Mock、物理 rollout、`rollout_samples=200`、输出 `logs/task_k_gold/credit_report_final.csv`，但本地分支只做代码接线，不在非 4090 环境执行大规模金标准采样。
 - Task L 现已具备独立入口 `liars_game_engine.analysis.task_l_proxy_refine_runner`：会先生成高 Probe 负采样日志，再分别训练 elite/mixed 两个 proxy，并在最新一批 100 局 Probe 日志上做同一组 20 点 alignment 对比。
 - 2026-04-23 本地 Task L 实跑结果已落盘到 `logs/task_l_proxy_refine/proxy_refine_report.json`：新增 10,438 条负采样记录（300 局），混合模型 `value_proxy_mlp_v2.pt` 将 Pearson 从 `0.3339` 提升到 `0.4249`，但 `val_mse` 从 `0.2047` 变为 `0.2088`，仍未达到 `Pearson > 0.6`，所以 Proxy 依然不能替代物理 rollout。
+- 2026-04-24 已按主控要求放弃 9D 路线并回滚到 `d2a3bc7` 的 8D 基线；随后在 `train_value_proxy.py` 中加入“跳过少于 3 回合对局”的训练过滤并重训。结果显示当前 elite/negative 两批日志的短局数都为 `0`，所以过滤没有改变有效训练集，重训后的指标仍基本等于 2026-04-23：elite `val_mse=0.2047`、Pearson=`0.3339`，mixed `val_mse=0.2088`、Pearson=`0.4249`。

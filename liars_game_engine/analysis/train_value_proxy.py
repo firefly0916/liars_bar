@@ -245,6 +245,17 @@ def load_value_samples(log_root: Path) -> list[ValueSample]:
         if not records:
             continue
 
+        turn_count = len(
+            {
+                int(_safe_float(record.get("turn", 0), default=0.0))
+                for record in records
+                if isinstance(record, dict)
+            }
+            - {0}
+        )
+        if turn_count < 3:
+            continue
+
         game_id = log_path.stem
         winner = _infer_winner(records)
 

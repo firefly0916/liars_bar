@@ -60,6 +60,20 @@
 | `logs/task_l_proxy_refine/mixed_model/value_proxy_mlp_v2.pt` | 1 | `+` | 新增负采样混合训练后的 v2 模型权重。 |
 | `logs/task_l_proxy_refine/negative_logs/*.jsonl` | 1 | `+` | 新增 300 局高 Probe 负采样轨迹，共 10,438 条记录。 |
 
+## 2026-04-24 / Session 1
+
+| File | Start Line | Change | Detail |
+|---|---:|:---:|---|
+| `liars_game_engine/analysis/train_value_proxy.py` | 230 | `~` | 在 value proxy 训练样本加载阶段新增“少于 3 回合整局跳过”过滤，作为 8D 路线的止损数据清洗。 |
+| `tests/test_shapley_analyzer.py` | 139 | `~` | 新增 `load_value_samples()` 会跳过少于 3 回合日志的回归测试。 |
+| `PROJECT_MEMORY.md` | 65 | `~` | 记录 8D 止损重训结果，并说明现有 elite/negative 日志的短局数均为 0，过滤未改变训练集。 |
+| `logs/CHANGELOG_DAILY.md` | 54 | `~` | 记录 8D 止损回滚、短局过滤和重训结果。 |
+| `logs/task_l_proxy_refine/elite_model/value_proxy_metrics.json` | 1 | `~` | 重新写入 8D elite-only 重训指标。 |
+| `logs/task_l_proxy_refine/elite_model/value_proxy_mlp.pt` | 1 | `~` | 重新写入 8D elite-only 模型权重。 |
+| `logs/task_l_proxy_refine/mixed_model/value_proxy_metrics_v2.json` | 1 | `~` | 重新写入 8D mixed 重训指标。 |
+| `logs/task_l_proxy_refine/mixed_model/value_proxy_mlp_v2.pt` | 1 | `~` | 重新写入 8D mixed 模型权重。 |
+| `logs/task_l_proxy_refine/proxy_refine_report.json` | 1 | `~` | 更新为 8D 止损重训后的 alignment 对比报告，并补充 elite/negative 短局计数为 0。 |
+
 ## 2026-04-17 / Session 3
 
 | File | Start Line | Change | Detail |

@@ -29,6 +29,7 @@ from liars_game_engine.analysis.train_value_proxy import (
     _build_feature_vector,
     build_value_proxy_feature_context,
     encode_value_proxy_features,
+    load_value_samples,
 )
 from liars_game_engine.config.schema import AppSettings
 from liars_game_engine.engine.environment import GameEnvironment
@@ -148,6 +149,109 @@ class ShapleyAnalyzerTest(unittest.IsolatedAsyncioTestCase):
             self.assertLessEqual(first.value_action, 1.0)
             self.assertGreaterEqual(first.value_counterfactual, 0.0)
             self.assertLessEqual(first.value_counterfactual, 1.0)
+
+    def test_load_value_samples_ignores_games_shorter_than_three_turns(self) -> None:
+        """作用: 验证 value proxy 训练样本会跳过少于 3 回合的对局日志。
+
+        输入:
+        - 无（测试内部构造 2 回合和 3 回合最小日志）。
+
+        返回:
+        - 无。
+        """
+        short_records = [
+            {
+                "turn": 1,
+                "player_id": "p1",
+                "state_features": {
+                    "phase": "turn_start",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_player_count": 2,
+                    "hand_count": 3,
+                    "death_probability": 0.0,
+                },
+                "observation": {
+                    "player_id": "p1",
+                    "phase": "turn_start",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_players": ["p1", "p2"],
+                    "private_hand": ["A", "K", "Q"],
+                    "player_states": {"p1": {"death_probability": 0.0}},
+                    "pending_claim": None,
+                },
+                "action": {"type": "play_claim", "cards": ["A"]},
+                "step_result": {"events": []},
+            },
+            {
+                "turn": 2,
+                "player_id": "p2",
+                "state_features": {
+                    "phase": "response_window",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_player_count": 2,
+                    "hand_count": 3,
+                    "death_probability": 0.0,
+                },
+                "observation": {
+                    "player_id": "p2",
+                    "phase": "response_window",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_players": ["p1", "p2"],
+                    "private_hand": ["A", "K", "Q"],
+                    "player_states": {"p2": {"death_probability": 0.0}},
+                    "pending_claim": {"declared_count": 1},
+                },
+                "action": {"type": "challenge", "cards": []},
+                "step_result": {"events": []},
+            },
+        ]
+        valid_records = short_records + [
+            {
+                "turn": 3,
+                "player_id": "p1",
+                "state_features": {
+                    "phase": "resolution",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_player_count": 1,
+                    "hand_count": 2,
+                    "death_probability": 0.0,
+                },
+                "observation": {
+                    "player_id": "p1",
+                    "phase": "resolution",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_players": ["p1"],
+                    "private_hand": ["A", "K"],
+                    "player_states": {"p1": {"death_probability": 0.0}},
+                    "pending_claim": None,
+                },
+                "action": {"type": "pass", "cards": []},
+                "step_result": {"events": []},
+            }
+        ]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            short_path = Path(temp_dir) / "short.jsonl"
+            valid_path = Path(temp_dir) / "valid.jsonl"
+            short_path.write_text(
+                "\n".join(json.dumps(record, ensure_ascii=False) for record in short_records),
+                encoding="utf-8",
+            )
+            valid_path.write_text(
+                "\n".join(json.dumps(record, ensure_ascii=False) for record in valid_records),
+                encoding="utf-8",
+            )
+
+            samples = load_value_samples(Path(temp_dir))
+
+        self.assertEqual(len(samples), 3)
+        self.assertEqual({sample.game_id for sample in samples}, {"valid"})
 
     def test_counterfactual_action_excludes_logged_action(self) -> None:
         """作用: 验证反事实动作采样不会回退到原日志动作。

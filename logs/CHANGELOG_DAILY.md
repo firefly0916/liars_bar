@@ -51,6 +51,15 @@
 - 执行真实 Task L 流水线：生成 `10,438` 条负采样记录（300 局），混合模型将 Pearson 从 `0.3339` 提升到 `0.4249`，但 `val_mse` 由 `0.2047` 恶化到 `0.2088`，仍未达到 `Pearson > 0.6`。
 - 回归验证：全量 `unittest discover tests -v` 通过（50/50）；产物已落盘到 `logs/task_l_proxy_refine/`。
 
+## 2026-04-24
+
+### Session 1 - 8D stop-loss retrain after abandoning 9D
+- 按主控要求将 `dev-proxy-refine` 回滚到 `d2a3bc7`，放弃 9D 特征方案，仅保留 8D（`hand_truth_ratio` + `action_consistency_score`）。
+- 在 `train_value_proxy.py` 中新增训练样本过滤：整局跳过少于 `3` 回合的对局日志。
+- 新增定向单测验证短局日志会被过滤，并完成相关回归测试。
+- 基于现有 `logs/task_d_probe/probe_logs` 与 `logs/task_l_proxy_refine/negative_logs` 重新训练 elite/mixed 两个 8D proxy，并重跑 alignment。
+- 实际结果：elite/negative 两批日志中的短局数都为 `0`，因此过滤未改变训练集；重训后 elite `val_mse=0.2047`、Pearson=`0.3339`，mixed `val_mse=0.2088`、Pearson=`0.4249`，与回滚基线基本一致。
+
 ## 2026-03-19
 
 ### Session 2 - Project renaming to generic social-deduction scope
