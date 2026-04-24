@@ -345,6 +345,94 @@ class ShapleyAnalyzerTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual([sample.target for sample in samples], [0.7, 0.2, 0.4])
 
+    def test_load_value_samples_in_phi_mode_skips_records_without_phi_labels(self) -> None:
+        """作用: 验证严格 phi 模式不会对无标签记录回退到 winner target。"""
+        unlabeled_records = [
+            {
+                "turn": 1,
+                "player_id": "p1",
+                "state_features": {
+                    "phase": "turn_start",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_player_count": 2,
+                    "hand_count": 3,
+                    "death_probability": 0.0,
+                },
+                "observation": {
+                    "player_id": "p1",
+                    "phase": "turn_start",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_players": ["p1", "p2"],
+                    "private_hand": ["A", "K", "Q"],
+                    "player_states": {"p1": {"death_probability": 0.0}},
+                    "pending_claim": None,
+                },
+                "action": {"type": "play_claim", "cards": ["A"]},
+                "step_result": {"events": []},
+            },
+            {
+                "turn": 2,
+                "player_id": "p2",
+                "state_features": {
+                    "phase": "response_window",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_player_count": 2,
+                    "hand_count": 3,
+                    "death_probability": 0.0,
+                },
+                "observation": {
+                    "player_id": "p2",
+                    "phase": "response_window",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_players": ["p1", "p2"],
+                    "private_hand": ["A", "K", "Q"],
+                    "player_states": {"p2": {"death_probability": 0.0}},
+                    "pending_claim": {"declared_count": 1},
+                },
+                "action": {"type": "challenge", "cards": []},
+                "step_result": {"events": []},
+            },
+            {
+                "turn": 3,
+                "player_id": "p2",
+                "state_features": {
+                    "phase": "resolution",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_player_count": 1,
+                    "hand_count": 2,
+                    "death_probability": 0.0,
+                },
+                "observation": {
+                    "player_id": "p2",
+                    "phase": "resolution",
+                    "table_type": "A",
+                    "must_call_liar": False,
+                    "alive_players": ["p2"],
+                    "private_hand": ["A", "K"],
+                    "player_states": {"p2": {"death_probability": 0.0}},
+                    "pending_claim": None,
+                },
+                "action": {"type": "pass", "cards": []},
+                "step_result": {"events": []},
+            },
+        ]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_path = Path(temp_dir) / "unlabeled.jsonl"
+            log_path.write_text(
+                "\n".join(json.dumps(record, ensure_ascii=False) for record in unlabeled_records),
+                encoding="utf-8",
+            )
+
+            samples = load_value_samples(Path(temp_dir), target_mode=VALUE_PROXY_TARGET_PHI)
+
+        self.assertEqual(samples, [])
+
     def test_counterfactual_action_excludes_logged_action(self) -> None:
         """作用: 验证反事实动作采样不会回退到原日志动作。
 

@@ -253,6 +253,8 @@ def _extract_value_target(
                 return float(label)
             except (TypeError, ValueError):
                 continue
+        if target_mode == VALUE_PROXY_TARGET_PHI:
+            return None
 
     return 1.0 if (winner is not None and player_id == winner) else 0.0
 
