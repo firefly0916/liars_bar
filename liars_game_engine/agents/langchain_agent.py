@@ -14,8 +14,8 @@ class LangChainAgent(BaseAgent):
         model: str,
         prompt_profile: str,
         temperature: float,
-        openrouter_api_key: str,
-        openrouter_base_url: str,
+        api_key: str,
+        base_url: str,
         max_retries: int,
         enable_null_player_probe: bool = False,
     ) -> None:
@@ -26,16 +26,16 @@ class LangChainAgent(BaseAgent):
         - model: 目标模型名。
         - prompt_profile: Prompt profile 名称。
         - temperature: 推理温度。
-        - openrouter_api_key: OpenRouter API key。
-        - openrouter_base_url: OpenRouter base URL。
+        - api_key: OpenAI-compatible API key。
+        - base_url: OpenAI-compatible base URL。
         - max_retries: 输出解析失败后的最大重试次数。
 
         返回:
         - 无。
         """
         super().__init__(player_id=player_id, model=model, prompt_profile=prompt_profile, temperature=temperature)
-        self.openrouter_api_key = openrouter_api_key
-        self.openrouter_base_url = openrouter_base_url
+        self.api_key = api_key
+        self.base_url = base_url
         self.max_retries = max_retries
         self.profile = load_prompt_profile(prompt_profile)
         self.planner = LiarPlanner(enable_null_player_probe=enable_null_player_probe)
@@ -70,15 +70,15 @@ class LangChainAgent(BaseAgent):
         返回:
         - AgentDecision: 成功时返回解析后的动作；失败时返回带 parse_error 的降级动作。
         """
-        if not self.openrouter_api_key:
+        if not self.api_key:
             return AgentDecision(
-                thought="Missing OPENROUTER_API_KEY, fallback to challenge.",
+                thought="Missing API key, fallback to challenge.",
                 action=ActionModel(type="challenge"),
                 selected_skill="Logical_Skepticism",
                 skill_parameters={},
                 parse_error=ParseError(
                     code="E_AGENT_PROVIDER_UNAVAILABLE",
-                    message="OPENROUTER_API_KEY is required for LangChainAgent",
+                    message="An OpenAI-compatible API key is required for LangChainAgent",
                     raw_output="",
                 ),
             )
@@ -101,8 +101,8 @@ class LangChainAgent(BaseAgent):
             )
 
         client = ChatOpenAI(
-            api_key=self.openrouter_api_key,
-            base_url=self.openrouter_base_url,
+            api_key=self.api_key,
+            base_url=self.base_url,
             model=self.model,
             temperature=self.temperature,
         )

@@ -10,6 +10,23 @@ class ApiSettings:
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     timeout_seconds: int = 60
 
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any]) -> "ApiSettings":
+        """作用: 兼容通用 API 字段并构建 API 配置对象。
+
+        输入:
+        - raw: 原始 API 配置字典，允许使用 api_key/base_url 或历史字段名。
+
+        返回:
+        - ApiSettings: 标准化后的 API 配置实例。
+        """
+        normalized = dict(raw)
+        if "api_key" in normalized and "openrouter_api_key" not in normalized:
+            normalized["openrouter_api_key"] = normalized.pop("api_key")
+        if "base_url" in normalized and "openrouter_base_url" not in normalized:
+            normalized["openrouter_base_url"] = normalized.pop("base_url")
+        return cls(**normalized)
+
 
 @dataclass
 class RuntimeSettings:
@@ -72,7 +89,7 @@ class AppSettings:
         """
         players = [PlayerConfig(**player) for player in raw.get("players", [])]
         return cls(
-            api=ApiSettings(**raw.get("api", {})),
+            api=ApiSettings.from_dict(raw.get("api", {})),
             runtime=RuntimeSettings(**raw.get("runtime", {})),
             parser=ParserSettings(**raw.get("parser", {})),
             logging=LoggingSettings(**raw.get("logging", {})),

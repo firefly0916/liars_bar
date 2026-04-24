@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 
 import yaml
 
@@ -48,11 +49,30 @@ def load_settings(config_file: Path | str = "config/experiment.yaml", env_file: 
 
     settings = AppSettings.from_dict(yaml_data)
 
-    env_data = _parse_dotenv(env_path)
-    settings.api.openrouter_api_key = env_data.get("OPENROUTER_API_KEY", settings.api.openrouter_api_key)
-    settings.api.openrouter_base_url = env_data.get("OPENROUTER_BASE_URL", settings.api.openrouter_base_url)
+    merged_env = _parse_dotenv(env_path)
+    merged_env.update({key: value for key, value in os.environ.items() if value})
 
-    timeout_override = env_data.get("OPENROUTER_TIMEOUT_SECONDS")
+    api_key_override = (
+        merged_env.get("OPENAI_API_KEY")
+        or merged_env.get("OPENROUTER_API_KEY")
+        or merged_env.get("VLLM_API_KEY")
+    )
+    if api_key_override:
+        settings.api.openrouter_api_key = api_key_override
+
+    base_url_override = (
+        merged_env.get("OPENAI_BASE_URL")
+        or merged_env.get("OPENROUTER_BASE_URL")
+        or merged_env.get("VLLM_BASE_URL")
+    )
+    if base_url_override:
+        settings.api.openrouter_base_url = base_url_override
+
+    timeout_override = (
+        merged_env.get("OPENAI_TIMEOUT_SECONDS")
+        or merged_env.get("OPENROUTER_TIMEOUT_SECONDS")
+        or merged_env.get("VLLM_TIMEOUT_SECONDS")
+    )
     if timeout_override:
         settings.api.timeout_seconds = int(timeout_override)
 

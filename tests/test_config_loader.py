@@ -1,6 +1,8 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from liars_game_engine.config.loader import load_settings
 
@@ -70,6 +72,53 @@ rules:
             self.assertEqual(settings.players[1].model, "anthropic/claude-3.5-sonnet")
             self.assertEqual(settings.runtime.fallback_action, "challenge")
             self.assertTrue(settings.runtime.enable_null_player_probe)
+
+    def test_load_settings_supports_generic_api_keys_from_yaml(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            config_file = base / "experiment.yaml"
+            config_file.write_text(
+                """
+api:
+  api_key: generic-key
+  base_url: http://127.0.0.1:8000/v1
+  timeout_seconds: 30
+players: []
+""",
+                encoding="utf-8",
+            )
+
+            settings = load_settings(config_file=config_file, env_file=base / ".env.missing")
+
+            self.assertEqual(settings.api.openrouter_api_key, "generic-key")
+            self.assertEqual(settings.api.openrouter_base_url, "http://127.0.0.1:8000/v1")
+            self.assertEqual(settings.api.timeout_seconds, 30)
+
+    def test_process_environment_overrides_dotenv_with_openai_aliases(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            env_file = base / ".env"
+            env_file.write_text(
+                "OPENROUTER_API_KEY=dotenv-key\nOPENROUTER_BASE_URL=https://openrouter.ai/api/v1\n",
+                encoding="utf-8",
+            )
+            config_file = base / "experiment.yaml"
+            config_file.write_text("players: []\n", encoding="utf-8")
+
+            with patch.dict(
+                os.environ,
+                {
+                    "OPENAI_API_KEY": "runtime-key",
+                    "OPENAI_BASE_URL": "http://127.0.0.1:8000/v1",
+                    "OPENAI_TIMEOUT_SECONDS": "15",
+                },
+                clear=False,
+            ):
+                settings = load_settings(config_file=config_file, env_file=env_file)
+
+            self.assertEqual(settings.api.openrouter_api_key, "runtime-key")
+            self.assertEqual(settings.api.openrouter_base_url, "http://127.0.0.1:8000/v1")
+            self.assertEqual(settings.api.timeout_seconds, 15)
 
 
 if __name__ == "__main__":

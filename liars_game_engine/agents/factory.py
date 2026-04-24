@@ -24,8 +24,8 @@ def build_agents(settings: AppSettings) -> dict[str, BaseAgent]:
                 model=player.model,
                 prompt_profile=player.prompt_profile,
                 temperature=player.temperature,
-                openrouter_api_key=settings.api.openrouter_api_key,
-                openrouter_base_url=settings.api.openrouter_base_url,
+                api_key=settings.api.openrouter_api_key,
+                base_url=settings.api.openrouter_base_url,
                 max_retries=settings.parser.max_retries,
                 enable_null_player_probe=settings.runtime.enable_null_player_probe,
             )
