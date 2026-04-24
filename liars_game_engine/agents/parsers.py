@@ -58,12 +58,18 @@ def _normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
     if "action" not in normalized and "act" in normalized:
         normalized["action"] = normalized["act"]
+    if "action" not in normalized and "Action" in normalized:
+        normalized["action"] = normalized["Action"]
 
     if "thought" not in normalized:
         if "reasoning" in normalized:
             normalized["thought"] = normalized["reasoning"]
+        elif "Reasoning" in normalized:
+            normalized["thought"] = normalized["Reasoning"]
         elif "analysis" in normalized:
             normalized["thought"] = normalized["analysis"]
+        elif "Thought" in normalized:
+            normalized["thought"] = normalized["Thought"]
 
     return normalized
 
