@@ -24,9 +24,11 @@ dev = [
   "pytest-asyncio>=0.23",
 ]
 llm = [
+  "openai>=1.0",
   "langchain-openai>=0.1",
 ]
 server = [
+  "openai>=1.0",
   "langchain-openai>=0.1",
   "vllm>=0.8",
 ]
