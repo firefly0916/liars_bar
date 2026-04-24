@@ -17,12 +17,36 @@ def _resolve_async_result(result: object) -> object:
     return result
 
 
+def _append_progress_log(
+    progress_log_path: Path,
+    *,
+    completed_games: int,
+    total_games: int,
+    batch_index: int,
+    batch_game_count: int,
+    cumulative_attribution_count: int,
+    batch_elapsed_seconds: float,
+) -> None:
+    progress_log_path.parent.mkdir(parents=True, exist_ok=True)
+    line = (
+        f"batch={batch_index} "
+        f"completed_games={completed_games} "
+        f"total_games={total_games} "
+        f"batch_game_count={batch_game_count} "
+        f"cumulative_attributions={cumulative_attribution_count} "
+        f"batch_elapsed_seconds={batch_elapsed_seconds:.6f}"
+    )
+    with progress_log_path.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+
+
 def run_task_k_gold_pipeline(
     config_file: str | Path = "config/experiment.yaml",
     game_count: int = 2_000,
     rollout_samples: int = 200,
     output_dir: str | Path = "logs/task_k_gold",
     max_workers: int | None = 24,
+    progress_interval_games: int = 500,
 ) -> dict[str, object]:
     """作用: 执行 Task K 金标准物理 rollout 归因流水线。
 
@@ -32,6 +56,7 @@ def run_task_k_gold_pipeline(
     - rollout_samples: 每个决策点的物理采样次数。
     - output_dir: 输出目录。
     - max_workers: 并行 worker 数；为空时退回 CPU 核数。
+    - progress_interval_games: 每处理多少局追加一条进度日志。
 
     返回:
     - dict[str, object]: 基线日志、报表路径与平均归因耗时摘要。
@@ -41,9 +66,9 @@ def run_task_k_gold_pipeline(
 
     output_path = Path(output_dir)
     baseline_dir = output_path / "baseline_logs"
-    baseline_logs = _resolve_async_result(
-        generate_baseline_logs(task_settings, game_count=game_count, log_dir=baseline_dir)
-    )
+    progress_log_path = output_path / "progress.log"
+    progress_log_path.parent.mkdir(parents=True, exist_ok=True)
+    progress_log_path.write_text("", encoding="utf-8")
 
     analyzer_workers = max_workers if max_workers is not None else (os.cpu_count() or 1)
     analyzer = ShapleyAnalyzer(
@@ -54,21 +79,52 @@ def run_task_k_gold_pipeline(
         baseline_mode=BASELINE_MODE_RANDOM_LEGAL_AGENT,
     )
 
-    start = time.perf_counter()
-    attributions, _ = analyzer.analyze_logs(baseline_logs)
-    elapsed = max(0.0, time.perf_counter() - start)
+    all_baseline_logs: list[Path] = []
+    all_attributions = []
+    completed_games = 0
+    elapsed = 0.0
+    batch_index = 0
+    games_remaining = max(1, int(game_count))
+    batch_size = max(1, int(progress_interval_games))
+
+    while completed_games < games_remaining:
+        batch_index += 1
+        current_batch_game_count = min(batch_size, games_remaining - completed_games)
+        batch_logs = _resolve_async_result(
+            generate_baseline_logs(task_settings, game_count=current_batch_game_count, log_dir=baseline_dir)
+        )
+        all_baseline_logs.extend(batch_logs)
+
+        batch_start = time.perf_counter()
+        batch_attributions, _ = analyzer.analyze_logs(batch_logs)
+        batch_elapsed = max(0.0, time.perf_counter() - batch_start)
+        elapsed += batch_elapsed
+        all_attributions.extend(batch_attributions)
+
+        completed_games += len(batch_logs)
+        _append_progress_log(
+            progress_log_path,
+            completed_games=completed_games,
+            total_games=games_remaining,
+            batch_index=batch_index,
+            batch_game_count=len(batch_logs),
+            cumulative_attribution_count=len(all_attributions),
+            batch_elapsed_seconds=batch_elapsed,
+        )
+
     report_path = output_path / "credit_report_final.csv"
-    analyzer.export_credit_report(attributions=attributions, output_path=report_path)
+    analyzer.export_credit_report(attributions=all_attributions, output_path=report_path)
 
     return {
-        "baseline_game_count": len(baseline_logs),
+        "baseline_game_count": len(all_baseline_logs),
         "baseline_dir": str(baseline_dir),
-        "attribution_count": len(attributions),
+        "attribution_count": len(all_attributions),
         "credit_report": str(report_path),
+        "progress_log": str(progress_log_path),
         "rollout_samples": int(rollout_samples),
         "max_workers": max(1, analyzer_workers),
         "attribution_elapsed_seconds": elapsed,
-        "average_seconds_per_attribution": elapsed / max(1, len(attributions)),
+        "average_seconds_per_attribution": elapsed / max(1, len(all_attributions)),
     }
 
 
