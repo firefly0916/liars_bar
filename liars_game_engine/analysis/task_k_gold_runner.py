@@ -11,6 +11,13 @@ from liars_game_engine.analysis.task_c_runner import _ensure_four_mock_players, 
 from liars_game_engine.config.loader import load_settings
 
 
+def _build_progress_bar(completed_games: int, total_games: int, width: int = 20) -> str:
+    safe_total = max(1, int(total_games))
+    ratio = max(0.0, min(1.0, completed_games / safe_total))
+    filled = min(width, int(ratio * width))
+    return f"[{'#' * filled}{'-' * (width - filled)}]"
+
+
 def _resolve_async_result(result: object) -> object:
     if inspect.isawaitable(result):
         return asyncio.runners.run(result)
@@ -26,18 +33,27 @@ def _append_progress_log(
     batch_game_count: int,
     cumulative_attribution_count: int,
     batch_elapsed_seconds: float,
+    total_elapsed_seconds: float,
 ) -> None:
     progress_log_path.parent.mkdir(parents=True, exist_ok=True)
+    safe_total = max(1, int(total_games))
+    percent_complete = max(0.0, min(100.0, (completed_games / safe_total) * 100.0))
+    average_seconds_per_game = total_elapsed_seconds / max(1, completed_games)
+    eta_seconds = average_seconds_per_game * max(0, safe_total - completed_games)
     line = (
         f"batch={batch_index} "
-        f"completed_games={completed_games} "
-        f"total_games={total_games} "
+        f"completed_games={completed_games}/{total_games} "
+        f"percent={percent_complete:.1f}% "
+        f"progress_bar={_build_progress_bar(completed_games, safe_total)} "
         f"batch_game_count={batch_game_count} "
         f"cumulative_attributions={cumulative_attribution_count} "
-        f"batch_elapsed_seconds={batch_elapsed_seconds:.6f}"
+        f"batch_elapsed_seconds={batch_elapsed_seconds:.6f} "
+        f"total_elapsed_seconds={total_elapsed_seconds:.6f} "
+        f"eta_seconds={eta_seconds:.6f}"
     )
     with progress_log_path.open("a", encoding="utf-8") as handle:
         handle.write(line + "\n")
+    print(line, flush=True)
 
 
 def run_task_k_gold_pipeline(
@@ -46,7 +62,7 @@ def run_task_k_gold_pipeline(
     rollout_samples: int = 200,
     output_dir: str | Path = "logs/task_k_gold",
     max_workers: int | None = 24,
-    progress_interval_games: int = 500,
+    progress_interval_games: int = 50,
 ) -> dict[str, object]:
     """作用: 执行 Task K 金标准物理 rollout 归因流水线。
 
@@ -110,6 +126,7 @@ def run_task_k_gold_pipeline(
             batch_game_count=len(batch_logs),
             cumulative_attribution_count=len(all_attributions),
             batch_elapsed_seconds=batch_elapsed,
+            total_elapsed_seconds=elapsed,
         )
 
     report_path = output_path / "credit_report_final.csv"

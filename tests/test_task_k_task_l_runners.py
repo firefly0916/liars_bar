@@ -92,7 +92,7 @@ class TaskKTaskLRunnerTest(unittest.TestCase):
         self.assertTrue(str(summary["credit_report"]).endswith("credit_report_final.csv"))
         self.assertIn("average_seconds_per_attribution", summary)
 
-    def test_task_k_pipeline_writes_progress_log_every_500_games(self) -> None:
+    def test_task_k_pipeline_writes_progress_log_every_50_games_with_percent_and_eta(self) -> None:
         fake_attr = ShapleyAttribution(
             game_id="g1",
             turn=1,
@@ -113,8 +113,8 @@ class TaskKTaskLRunnerTest(unittest.TestCase):
         ), patch(
             "liars_game_engine.analysis.task_k_gold_runner.generate_baseline_logs",
             side_effect=[
-                [Path(temp_dir) / "g1.jsonl" for _ in range(500)],
-                [Path(temp_dir) / "g2.jsonl" for _ in range(500)],
+                [Path(temp_dir) / "g1.jsonl" for _ in range(50)],
+                [Path(temp_dir) / "g2.jsonl" for _ in range(50)],
             ],
         ), patch(
             "liars_game_engine.analysis.task_k_gold_runner.asyncio.run",
@@ -125,13 +125,16 @@ class TaskKTaskLRunnerTest(unittest.TestCase):
         ), patch(
             "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.export_credit_report",
             side_effect=lambda attributions, output_path: Path(output_path),
+        ), patch(
+            "liars_game_engine.analysis.task_k_gold_runner.time.perf_counter",
+            side_effect=[10.0, 30.0, 40.0, 70.0],
         ):
             summary = run_task_k_gold_pipeline(
                 output_dir=temp_dir,
-                game_count=1000,
+                game_count=100,
                 rollout_samples=200,
                 max_workers=24,
-                progress_interval_games=500,
+                progress_interval_games=50,
             )
 
             progress_path = Path(summary["progress_log"])
@@ -139,8 +142,13 @@ class TaskKTaskLRunnerTest(unittest.TestCase):
             self.assertTrue(progress_path.exists())
 
         self.assertEqual(len(progress_lines), 2)
-        self.assertIn("completed_games=500", progress_lines[0])
-        self.assertIn("completed_games=1000", progress_lines[1])
+        self.assertIn("completed_games=50/100", progress_lines[0])
+        self.assertIn("percent=50.0%", progress_lines[0])
+        self.assertIn("eta_seconds=20.000000", progress_lines[0])
+        self.assertIn("progress_bar=[##########----------]", progress_lines[0])
+        self.assertIn("completed_games=100/100", progress_lines[1])
+        self.assertIn("percent=100.0%", progress_lines[1])
+        self.assertIn("eta_seconds=0.000000", progress_lines[1])
         self.assertIn("progress_log", summary)
 
     def test_task_l_pipeline_returns_comparison_summary(self) -> None:
