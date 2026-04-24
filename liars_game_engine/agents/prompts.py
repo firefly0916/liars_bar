@@ -11,12 +11,12 @@ from liars_game_engine.engine.game_state import JOKER_RANK
 DEFAULT_PROFILE = {
     "system": "You are a strategic Liar's Bar player.",
     "instruction": (
-        "Return JSON with keys thought and action. "
-        "action.type must be one of play_claim, challenge, pass."
+        "Return JSON only with keys Reasoning and Action. "
+        "Action.type must be one of play_claim, challenge, pass."
     ),
     "output_schema": {
-        "thought": "string",
-        "action": {
+        "Reasoning": "string",
+        "Action": {
             "type": "play_claim|challenge|pass",
             "claim_rank": "string|null",
             "cards": ["string"],
@@ -88,18 +88,18 @@ def _truthful_card_count(cards: list[str], table_type: str) -> int:
 
 def _describe_truth_ratio(ratio: float) -> str:
     if ratio >= 0.75:
-        return "你手里的真牌储备很充足，继续诚实出牌的空间较大。"
+        return "真牌充足"
     if ratio >= 0.4:
-        return "你手里真假参半，还能维持一定可信度。"
-    return "你手里大部分是假牌，继续诚实出牌会越来越吃紧。"
+        return "真假参半"
+    return "真牌偏少"
 
 
 def _describe_persona_stability(score: float) -> str:
     if score >= 0.75:
-        return "你的人设目前相当稳定，对手更容易相信你。"
+        return "较稳"
     if score >= 0.4:
-        return "你的人设还算稳，但已经不能随意透支。"
-    return "你的人设比较脆弱，一旦被抓到破绽就容易崩盘。"
+        return "一般"
+    return "脆弱"
 
 
 def _build_qualitative_context(
@@ -108,18 +108,11 @@ def _build_qualitative_context(
     death_probability: float,
     pending_claim_text: str,
 ) -> str:
-    risk_text = "非常危险" if death_probability >= 1.0 / 3.0 else ("有明显风险" if death_probability > 1.0 / 6.0 else "相对可控")
-    truth_text = _describe_truth_ratio(hand_truth_ratio)
-    persona_text = _describe_persona_stability(action_consistency_score)
-    pending_text = (
-        f"上家当前的声明是：{pending_claim_text}。"
-        if pending_claim_text != "none"
-        else "当前没有待处理的上家声明，你可以主动塑造新一轮叙事。"
-    )
+    risk_text = "high" if death_probability >= 1.0 / 3.0 else ("mid" if death_probability > 1.0 / 6.0 else "low")
+    claim_text = pending_claim_text if pending_claim_text != "none" else "no pending claim"
     return (
-        f"局势分析：你现在的处境{risk_text}。{persona_text}"
-        f"{truth_text}{pending_text}"
-        "请综合判断自己是该继续维持叙事，还是立刻挑战对手。"
+        f"Risk={risk_text}; persona={_describe_persona_stability(action_consistency_score)}; "
+        f"honesty={_describe_truth_ratio(hand_truth_ratio)}; pending={claim_text}."
     )
 
 
@@ -134,19 +127,15 @@ def _describe_legal_actions(observation: dict[str, object], table_type: str, tru
             continue
         action_type = str(item.get("type", ""))
         if action_type == "challenge":
-            descriptions.append(
-                "challenge: 质疑上家。这不会要求你立刻出牌，适合在你怀疑对方或自身死亡风险过高时使用。"
-            )
+            descriptions.append("challenge")
         elif action_type == "play_claim":
             min_cards = int(item.get("min_cards", 1))
             max_cards = int(item.get("max_cards", 3))
             descriptions.append(
-                "play_claim: 继续报牌。"
-                f" 你可以声明 {item.get('claim_rank', table_type)}，一次打出 {min_cards}-{max_cards} 张。"
-                f" 你当前手里与桌面匹配的真牌/JOKER 共有 {truthful_cards_in_hand} 张。"
+                f"play_claim(rank={item.get('claim_rank', table_type)},cards={min_cards}-{max_cards},true={truthful_cards_in_hand})"
             )
         elif action_type:
-            descriptions.append(f"{action_type}: 按系统给出的合法动作执行。")
+            descriptions.append(action_type)
     return descriptions
 
 
@@ -199,23 +188,19 @@ def format_observation_for_llm(observation: dict[str, object]) -> str:
 
     return (
         "Status Report\n"
-        f"- 当前阶段: {phase}\n"
-        f"- 桌面牌型: {table_type}\n"
-        f"- 手牌: {private_hand_text}\n"
-        f"- 诚实度参考: {_format_percent(hand_truth_ratio)} ({_describe_truth_ratio(hand_truth_ratio)})\n"
-        f"- 人设稳定性: {_format_percent(action_consistency_score)} ({_describe_persona_stability(action_consistency_score)})\n"
-        f"- 轮盘死亡概率: {_format_percent(death_probability)} "
-        f"(按 6 槽轮盘估算，约有 {lethal_slots} 个致命位、{safe_slots} 个安全位)\n"
-        f"- 待回应声明: {pending_claim_text}\n"
-        f"- 是否被迫质疑: {bool(observation.get('must_call_liar', False))}\n"
-        f"- 合法动作空间: {legal_action_lines}\n\n"
+        f"- phase: {phase}\n"
+        f"- table: {table_type}\n"
+        f"- hand: {private_hand_text}\n"
+        f"- 诚实度参考: {_format_percent(hand_truth_ratio)}\n"
+        f"- 人设稳定性: {_format_percent(action_consistency_score)}\n"
+        f"- 轮盘死亡概率: {_format_percent(death_probability)} ({lethal_slots} lethal / {safe_slots} safe)\n"
+        f"- pending: {pending_claim_text}\n"
+        f"- must_challenge: {bool(observation.get('must_call_liar', False))}\n"
+        f"- legal: {' | '.join(legal_action_lines)}\n\n"
         "Qualitative Context\n"
         f"{qualitative_context}\n\n"
         "Decision Request\n"
-        "基于以上客观数据与局势分析，在合法动作范围内选择你本回合的最佳动作。"
-        "不要手动编造任何额外分值、评分或启发式期望，也不要虚构系统未给出的隐藏信息。"
-        "请先给出你的 Reasoning，再给出最终 Action。"
-        "只返回 JSON，格式如下：\n"
+        "Choose one legal action. No hidden info. Return JSON only:\n"
         "{\n"
         '  "Reasoning": "string",\n'
         '  "Action": {\n'
@@ -245,9 +230,8 @@ def build_openai_messages(profile: dict[str, object], observation: dict[str, obj
         {
             "role": "user",
             "content": (
-                f"ROLE REMINDER:\n{profile['instruction']}\n\n"
-                f"STATE_TEMPLATE:\n{format_observation_for_llm(observation)}\n\n"
-                "Respond in JSON only."
+                f"{profile['instruction']}\n\n"
+                f"{format_observation_for_llm(observation)}"
             ),
         },
     ]

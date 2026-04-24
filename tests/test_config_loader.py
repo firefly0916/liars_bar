@@ -120,6 +120,31 @@ players: []
             self.assertEqual(settings.api.openrouter_base_url, "http://127.0.0.1:8000/v1")
             self.assertEqual(settings.api.timeout_seconds, 15)
 
+    def test_repo_experiment_config_is_drill_ready_for_task_m(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "OPENAI_API_KEY": "",
+                "OPENAI_BASE_URL": "",
+                "OPENROUTER_API_KEY": "",
+                "OPENROUTER_BASE_URL": "",
+                "VLLM_API_KEY": "",
+                "VLLM_BASE_URL": "",
+            },
+            clear=False,
+        ):
+            settings = load_settings(
+                config_file=Path("config/experiment.yaml"),
+                env_file=Path(".env.missing"),
+            )
+
+        self.assertEqual(settings.api.openrouter_api_key, "LOCAL")
+        self.assertEqual(settings.api.openrouter_base_url, "local://hf")
+        self.assertEqual(len(settings.players), 4)
+        self.assertEqual(settings.players[0].agent_type, "llm")
+        self.assertEqual(settings.players[0].model, "Qwen/Qwen2.5-0.5B-Instruct")
+        self.assertEqual(sum(1 for player in settings.players if player.agent_type == "mock"), 3)
+
 
 if __name__ == "__main__":
     unittest.main()

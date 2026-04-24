@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from liars_game_engine.agents.base_agent import AgentDecision, BaseAgent
+from liars_game_engine.agents.local_backend import LocalBackendUnavailableError, generate_local_chat_completion
 from liars_game_engine.agents.parsers import parse_agent_output
 from liars_game_engine.agents.prompts import build_openai_messages, load_prompt_profile
 from liars_game_engine.engine.game_state import ActionModel, ParseError
@@ -48,6 +49,35 @@ class LlmAgent(BaseAgent):
         返回:
         - AgentDecision: 成功时返回解析后的动作；失败时返回 challenge 降级动作。
         """
+        messages = build_openai_messages(self.profile, observation)
+        raw_output = await self._request_raw_output(messages)
+        if isinstance(raw_output, AgentDecision):
+            return raw_output
+
+        parsed = parse_agent_output(raw_output)
+        if parsed.ok and parsed.action is not None:
+            return AgentDecision(thought=parsed.thought, action=parsed.action, raw_output=raw_output)
+
+        return AgentDecision(
+            thought="Model output invalid, fallback to challenge.",
+            action=ActionModel(type="challenge"),
+            raw_output=raw_output,
+            parse_error=parsed.error,
+        )
+
+    async def _request_raw_output(self, messages: list[dict[str, str]]) -> str | AgentDecision:
+        if self.base_url.startswith("local://"):
+            try:
+                return await generate_local_chat_completion(
+                    model=self.model,
+                    messages=messages,
+                    temperature=self.temperature,
+                )
+            except LocalBackendUnavailableError as error:
+                return self._provider_unavailable_decision(str(error))
+            except Exception as error:
+                return self._provider_unavailable_decision(str(error))
+
         if not self.api_key:
             return self._provider_unavailable_decision("An OpenAI-compatible API key is required for LlmAgent")
 
@@ -58,24 +88,9 @@ class LlmAgent(BaseAgent):
         response = await client.chat.completions.create(
             model=self.model,
             temperature=self.temperature,
-            messages=build_openai_messages(self.profile, observation),
+            messages=messages,
         )
-
-        raw_output = _extract_message_content(response)
-        parsed = parse_agent_output(raw_output)
-        if parsed.ok and parsed.action is not None:
-            return AgentDecision(
-                thought=parsed.thought,
-                action=parsed.action,
-                raw_output=raw_output,
-            )
-
-        return AgentDecision(
-            thought="Model output invalid, fallback to challenge.",
-            action=ActionModel(type="challenge"),
-            raw_output=raw_output,
-            parse_error=parsed.error,
-        )
+        return _extract_message_content(response)
 
     def _provider_unavailable_decision(self, message: str) -> AgentDecision:
         return AgentDecision(

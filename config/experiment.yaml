@@ -1,7 +1,7 @@
 api:
+  api_key: LOCAL
+  base_url: local://hf
   timeout_seconds: 60
-  # base_url: http://127.0.0.1:8000/v1
-  # api_key: EMPTY
 runtime:
   max_turns: 120
   random_seed: 42
@@ -13,19 +13,31 @@ parser:
   allow_markdown_json: true
   allow_key_alias: true
 logging:
-  run_log_dir: logs/runs
+  run_log_dir: logs/llm_drill
   level: INFO
 players:
   - player_id: p1
-    name: Alice
+    name: Drill-LLM
+    agent_type: llm
+    model: Qwen/Qwen2.5-0.5B-Instruct
+    prompt_profile: baseline
+    temperature: 0.0
+  - player_id: p2
+    name: Mock-2
     agent_type: mock
-    model: openai/gpt-4o-mini
+    model: mock-a
     prompt_profile: baseline
     temperature: 0.2
-  - player_id: p2
-    name: Bob
+  - player_id: p3
+    name: Mock-3
     agent_type: mock
-    model: anthropic/claude-3.5-sonnet
+    model: mock-b
+    prompt_profile: baseline
+    temperature: 0.2
+  - player_id: p4
+    name: Mock-4
+    agent_type: mock
+    model: mock-c
     prompt_profile: baseline
     temperature: 0.2
 rules:

@@ -42,6 +42,31 @@ def _extract_candidates(raw_output: str) -> list[str]:
         candidate = matched.strip()
         if candidate:
             candidates.append(candidate)
+    candidates.extend(_extract_braced_json_candidates(raw_output))
+    return candidates
+
+
+def _extract_braced_json_candidates(raw_output: str) -> list[str]:
+    """作用: 从普通文本中提取花括号包裹的 JSON 片段。"""
+    candidates: list[str] = []
+    depth = 0
+    start_index: int | None = None
+
+    for index, char in enumerate(raw_output):
+        if char == "{":
+            if depth == 0:
+                start_index = index
+            depth += 1
+        elif char == "}":
+            if depth == 0:
+                continue
+            depth -= 1
+            if depth == 0 and start_index is not None:
+                candidate = raw_output[start_index : index + 1].strip()
+                if candidate:
+                    candidates.append(candidate)
+                start_index = None
+
     return candidates
 
 
@@ -54,24 +79,32 @@ def _normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
     返回:
     - dict[str, Any]: 规范化后的字段结构。
     """
-    normalized = dict(payload)
+    normalized = _lowercase_dict_keys(payload)
 
     if "action" not in normalized and "act" in normalized:
         normalized["action"] = normalized["act"]
-    if "action" not in normalized and "Action" in normalized:
-        normalized["action"] = normalized["Action"]
 
     if "thought" not in normalized:
         if "reasoning" in normalized:
             normalized["thought"] = normalized["reasoning"]
-        elif "Reasoning" in normalized:
-            normalized["thought"] = normalized["Reasoning"]
         elif "analysis" in normalized:
             normalized["thought"] = normalized["analysis"]
-        elif "Thought" in normalized:
-            normalized["thought"] = normalized["Thought"]
+
+    if isinstance(normalized.get("action"), dict):
+        action_payload = dict(normalized["action"])
+        if "claim_rank" not in action_payload and "claimrank" in action_payload:
+            action_payload["claim_rank"] = action_payload["claimrank"]
+        normalized["action"] = action_payload
 
     return normalized
+
+
+def _lowercase_dict_keys(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key).lower(): _lowercase_dict_keys(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_lowercase_dict_keys(item) for item in value]
+    return value
 
 
 def _validate_action(action_payload: Any, raw_output: str) -> ParseResult:

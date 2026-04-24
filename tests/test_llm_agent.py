@@ -1,4 +1,5 @@
 import importlib
+import importlib.util
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -102,6 +103,106 @@ class LlmAgentTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Qualitative Context", request["messages"][1]["content"])
         self.assertIn("Decision Request", request["messages"][1]["content"])
 
+    async def test_llm_agent_supports_local_hf_backend_without_http_client(self) -> None:
+        settings = AppSettings.from_dict(
+            {
+                "api": {
+                    "api_key": "LOCAL",
+                    "base_url": "local://hf",
+                },
+                "players": [
+                    {
+                        "player_id": "p1",
+                        "name": "Alice",
+                        "agent_type": "llm",
+                        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+                        "prompt_profile": "baseline",
+                        "temperature": 0.0,
+                    }
+                ],
+            }
+        )
+        observation = {
+            "player_id": "p1",
+            "phase": "response_window",
+            "current_player_id": "p1",
+            "table_type": "A",
+            "private_hand": ["Q", "K"],
+            "pending_claim": {"actor_id": "p2", "claim_rank": "A", "declared_count": 2},
+            "must_call_liar": False,
+            "alive_players": ["p1", "p2", "p3"],
+            "player_states": {"p1": {"death_probability": 1.0 / 3.0}},
+            "legal_actions": [
+                {"type": "challenge"},
+                {"type": "play_claim", "claim_rank": "A", "min_cards": 1, "max_cards": 2},
+            ],
+        }
+
+        agent = build_agents(settings)["p1"]
+        llm_agent_module = importlib.import_module("liars_game_engine.agents.llm_agent")
+
+        async def fake_local_completion(**kwargs):
+            self.assertEqual(kwargs["model"], "Qwen/Qwen2.5-0.5B-Instruct")
+            self.assertEqual(kwargs["temperature"], 0.0)
+            self.assertEqual(kwargs["messages"][0]["role"], "system")
+            return '{"Reasoning":"轮盘风险高，直接质疑。","Action":{"type":"challenge"}}'
+
+        with patch.object(llm_agent_module, "AsyncOpenAI", None), patch.object(
+            llm_agent_module,
+            "generate_local_chat_completion",
+            fake_local_completion,
+            create=True,
+        ):
+            decision = await agent.act(observation)
+
+        self.assertEqual(decision.thought, "轮盘风险高，直接质疑。")
+        self.assertEqual(decision.action.type, "challenge")
+
+    async def test_llm_agent_falls_back_when_local_backend_raises(self) -> None:
+        settings = AppSettings.from_dict(
+            {
+                "api": {
+                    "api_key": "LOCAL",
+                    "base_url": "local://hf",
+                },
+                "players": [
+                    {
+                        "player_id": "p1",
+                        "name": "Alice",
+                        "agent_type": "llm",
+                        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+                        "prompt_profile": "baseline",
+                        "temperature": 0.0,
+                    }
+                ],
+            }
+        )
+        agent = build_agents(settings)["p1"]
+        llm_agent_module = importlib.import_module("liars_game_engine.agents.llm_agent")
+
+        async def fake_local_completion(**kwargs):
+            raise RuntimeError("model load failed")
+
+        with patch.object(llm_agent_module, "generate_local_chat_completion", fake_local_completion):
+            decision = await agent.act(
+                {
+                    "player_id": "p1",
+                    "phase": "response_window",
+                    "current_player_id": "p1",
+                    "table_type": "A",
+                    "private_hand": ["Q", "K"],
+                    "pending_claim": {"actor_id": "p2", "claim_rank": "A", "declared_count": 2},
+                    "must_call_liar": False,
+                    "alive_players": ["p1", "p2", "p3"],
+                    "player_states": {"p1": {"death_probability": 1.0 / 3.0}},
+                    "legal_actions": [{"type": "challenge"}],
+                }
+            )
+
+        self.assertEqual(decision.action.type, "challenge")
+        self.assertIsNotNone(decision.parse_error)
+        self.assertEqual(decision.parse_error.code, "E_AGENT_PROVIDER_UNAVAILABLE")
+
     def test_build_openai_messages_uses_three_section_prompt_and_reasoning_action_contract(self) -> None:
         profile = load_prompt_profile("baseline")
         observation = {
@@ -134,6 +235,43 @@ class LlmAgentTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Reasoning", user_prompt)
         self.assertIn("Action", user_prompt)
         self.assertNotIn("phi", user_prompt.lower())
+        self.assertNotIn("selected_skill", user_prompt.lower())
+        self.assertNotIn("skill_parameters", user_prompt.lower())
+
+    @unittest.skipUnless(importlib.util.find_spec("transformers"), "transformers not installed")
+    def test_build_openai_messages_stays_under_400_tokens_for_task_m(self) -> None:
+        from transformers import AutoTokenizer
+
+        profile = load_prompt_profile("baseline")
+        observation = {
+            "player_id": "p1",
+            "phase": "response_window",
+            "current_player_id": "p1",
+            "table_type": "A",
+            "private_hand": ["Q", "K", "JOKER", "Q", "K"],
+            "pending_claim": {"actor_id": "p2", "claim_rank": "A", "declared_count": 2},
+            "must_call_liar": False,
+            "alive_players": ["p1", "p2", "p3", "p4"],
+            "player_states": {"p1": {"death_probability": 1.0 / 3.0}},
+            "legal_actions": [
+                {"type": "challenge"},
+                {"type": "play_claim", "claim_rank": "A", "min_cards": 1, "max_cards": 3},
+            ],
+        }
+
+        messages = build_openai_messages(profile, observation)
+        tokenizer = AutoTokenizer.from_pretrained(
+            "Qwen/Qwen2.5-0.5B-Instruct",
+            trust_remote_code=True,
+            local_files_only=True,
+        )
+        prompt_tokens = tokenizer(messages[1]["content"], return_tensors="pt")["input_ids"].shape[-1]
+
+        self.assertLess(
+            prompt_tokens,
+            400,
+            f"Task M prompt is too long: {prompt_tokens} tokens",
+        )
 
 
 if __name__ == "__main__":
