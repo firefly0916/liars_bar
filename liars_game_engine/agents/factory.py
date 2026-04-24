@@ -37,6 +37,7 @@ def build_agents(settings: AppSettings) -> dict[str, BaseAgent]:
                 temperature=player.temperature,
                 seed=settings.runtime.random_seed + index,
                 enable_null_player_probe=settings.runtime.enable_null_player_probe,
+                null_probe_action_probability=settings.runtime.null_probe_action_probability,
             )
 
         agents[player.player_id] = agent

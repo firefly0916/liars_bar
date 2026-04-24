@@ -16,6 +16,7 @@ class MockAgent(BaseAgent):
         temperature: float,
         seed: int = 0,
         enable_null_player_probe: bool = False,
+        null_probe_action_probability: float = 0.12,
     ) -> None:
         """作用: 初始化可复现的离线 MockAgent。
 
@@ -32,6 +33,7 @@ class MockAgent(BaseAgent):
         super().__init__(player_id=player_id, model=model, prompt_profile=prompt_profile, temperature=temperature)
         self.rng = random.Random(seed)
         self.enable_null_player_probe = enable_null_player_probe
+        self.null_probe_action_probability = max(0.0, min(1.0, float(null_probe_action_probability)))
         self.planner = LiarPlanner(enable_null_player_probe=enable_null_player_probe)
 
     async def act(self, observation: dict[str, object]) -> AgentDecision:
@@ -101,7 +103,12 @@ class MockAgent(BaseAgent):
             skill_parameters = {}
             thought = "No cards left; planner should route to pass."
 
-        if self.enable_null_player_probe and hand and "play_claim" in legal_types and self.rng.random() < 0.12:
+        if (
+            self.enable_null_player_probe
+            and hand
+            and "play_claim" in legal_types
+            and self.rng.random() < self.null_probe_action_probability
+        ):
             selected_skill = "Null_Probe_Skill"
             skill_parameters = {"probe_type": "Probe"}
             thought = "Probe mode: execute random-baseline legal action for null-player analysis."

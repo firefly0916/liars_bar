@@ -1,0 +1,34 @@
+{
+  "selected_run_id": "task-c-20260417-191531",
+  "alignment_log_count": 100,
+  "negative_log_dir": "logs/task_l_proxy_refine/negative_logs",
+  "negative_record_count": 10438,
+  "negative_game_count": 300,
+  "negative_probe_probability": 0.85,
+  "elite_model_path": "logs/task_l_proxy_refine/elite_model/value_proxy_mlp.pt",
+  "mixed_model_path": "logs/task_l_proxy_refine/mixed_model/value_proxy_mlp_v2.pt",
+  "elite_val_mse": 0.20469177359815544,
+  "mixed_val_mse": 0.20876328590611454,
+  "elite_alignment": {
+    "sample_size": 20,
+    "requested_sample_size": 20,
+    "pearson_correlation": 0.33387217391767215,
+    "mae": 0.09481335178017616,
+    "speedup_ratio": 467.3249784756911,
+    "rollout_elapsed_seconds": 8.48816284699933,
+    "proxy_elapsed_seconds": 0.018163298000217765,
+    "rollout_samples": 200,
+    "alignment_passed": false
+  },
+  "mixed_alignment": {
+    "sample_size": 20,
+    "requested_sample_size": 20,
+    "pearson_correlation": 0.42486821590779056,
+    "mae": 0.09425938284397126,
+    "speedup_ratio": 562.1414929898013,
+    "rollout_elapsed_seconds": 8.574859676000415,
+    "proxy_elapsed_seconds": 0.01525391699942702,
+    "rollout_samples": 200,
+    "alignment_passed": false
+  }
+}

@@ -38,6 +38,28 @@
 | `logs/task_d_probe/proxy_alignment_report.json` | 1 | `~` | 对齐结果更新为 8D 模型输出（Pearson 0.3339，MAE 0.0948，Speedup 451.45x）。 |
 | `logs/task_d_probe/credit_report_proxy.csv` | 1 | `~` | 100 局 proxy 信用报表更新为 8D 模型生成结果。 |
 
+## 2026-04-23 / Session 4
+
+| File | Start Line | Change | Detail |
+|---|---:|:---:|---|
+| `liars_game_engine/config/schema.py` | 15 | `~` | `RuntimeSettings` 增加 `null_probe_action_probability: float = 0.12`，用于控制 MockAgent 的 Probe 触发概率。 |
+| `config/experiment.yaml` | 3 | `~` | 新增 `runtime.null_probe_action_probability` 默认配置。 |
+| `liars_game_engine/agents/mock_agent.py` | 11 | `~` | `MockAgent` 支持注入 Probe 概率，并用该值替代硬编码的 `0.12`。 |
+| `liars_game_engine/agents/factory.py` | 33 | `~` | 构建 MockAgent 时透传 `settings.runtime.null_probe_action_probability`。 |
+| `liars_game_engine/analysis/train_value_proxy.py` | 275 | `~` | 新增多日志根目录加载能力，并允许自定义模型/指标文件名，供 Task L 训练 elite/mixed 两套模型。 |
+| `liars_game_engine/analysis/task_k_gold_runner.py` | 1 | `+` | 新增 Task K 物理金标准采样入口，导出 `logs/task_k_gold/credit_report_final.csv` 并统计平均归因耗时。 |
+| `liars_game_engine/analysis/task_l_proxy_refine_runner.py` | 1 | `+` | 新增 Task L 负采样、混合重训、alignment 对比与 `proxy_refine_report.json` 导出入口。 |
+| `tests/test_mock_agent_pipeline.py` | 106 | `~` | 新增 Probe 概率可配置断言，确保 `1.0` 时稳定触发 `Null_Probe_Skill`。 |
+| `tests/test_task_k_task_l_runners.py` | 1 | `+` | 新增 Task K/Task L runner 单测，锁定返回摘要字段与负采样配置行为。 |
+| `PROJECT_MEMORY.md` | 101 | `~` | 记录 Task K/L 入口约束、Task L 本地实跑结果与“仍不可替代物理 rollout”的结论。 |
+| `logs/CHANGELOG_DAILY.md` | 47 | `~` | 记录 Task K/L 接线、Task L 实跑结果与全量测试回归。 |
+| `logs/task_l_proxy_refine/proxy_refine_report.json` | 1 | `+` | 新增 elite vs mixed proxy 的对齐对比报告。 |
+| `logs/task_l_proxy_refine/elite_model/value_proxy_metrics.json` | 1 | `+` | 新增 Task L elite-only 重训指标。 |
+| `logs/task_l_proxy_refine/elite_model/value_proxy_mlp.pt` | 1 | `+` | 新增 Task L elite-only 模型权重。 |
+| `logs/task_l_proxy_refine/mixed_model/value_proxy_metrics_v2.json` | 1 | `+` | 新增负采样混合训练后的 v2 模型指标。 |
+| `logs/task_l_proxy_refine/mixed_model/value_proxy_mlp_v2.pt` | 1 | `+` | 新增负采样混合训练后的 v2 模型权重。 |
+| `logs/task_l_proxy_refine/negative_logs/*.jsonl` | 1 | `+` | 新增 300 局高 Probe 负采样轨迹，共 10,438 条记录。 |
+
 ## 2026-04-17 / Session 3
 
 | File | Start Line | Change | Detail |

@@ -44,6 +44,13 @@
 - 真实结果：`val_mse=0.2047`、`best_val_mse=0.2047`、`pearson=0.3339`、`mae=0.0948`、`speedup≈451.45x`；Pearson 已从负值转正，但仍未达到主控目标。
 - 全量 `unittest` 回归通过（46/46）；当前结论维持不变：EXP1/论文数据继续以物理 rollout 为准，8D proxy 仅作辅助观测。
 
+### Session 4 - Task K/L branch wiring and negative-sampling run
+- 新增 `runtime.null_probe_action_probability` 并贯通到 `MockAgent`，使 Task L 可显式提高 `Null_Probe_Skill` 触发概率来收集“作死”轨迹。
+- 新增 `liars_game_engine.analysis.task_k_gold_runner`，为 4090 `main` 分支准备 4 Mock + `rollout_samples=200` + `credit_report_final.csv` 的金标准物理归因入口；本次未在本地执行大规模采样。
+- 新增 `liars_game_engine.analysis.task_l_proxy_refine_runner`，支持生成负采样日志、混合重训 `value_proxy_mlp_v2.pt`、并对比 elite vs mixed 的 proxy alignment。
+- 执行真实 Task L 流水线：生成 `10,438` 条负采样记录（300 局），混合模型将 Pearson 从 `0.3339` 提升到 `0.4249`，但 `val_mse` 由 `0.2047` 恶化到 `0.2088`，仍未达到 `Pearson > 0.6`。
+- 回归验证：全量 `unittest discover tests -v` 通过（50/50）；产物已落盘到 `logs/task_l_proxy_refine/`。
+
 ## 2026-03-19
 
 ### Session 2 - Project renaming to generic social-deduction scope

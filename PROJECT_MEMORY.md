@@ -86,3 +86,7 @@
 - 当前已落地的第 7/8 维是 `hand_truth_ratio` 与 `action_consistency_score`；尽管 8D 版本已使 Pearson 从负值转正到 `0.3339`，但因训练目标仍是 observational winner label，而对齐指标比较的是 causal `phi`，改进幅度有限。
 - 若特征从 6 维扩展到 8 维，只要新增特征可由现有日志字段（`observation.private_hand`、`pending_claim`、`action`、`table_type`）推导，就**不需要**重新生成原始对局或重新做物理采样；需要的是基于现有 JSONL 重新提特征、重建训练张量并重新训练代理模型。
 - EXP1 / 论文数据沉淀阶段默认继续使用物理 rollout 归因；Proxy 仅保留为辅助观测、诊断与候选特征筛查工具。
+- `RuntimeSettings` 当前额外支持 `null_probe_action_probability`，用于控制 `MockAgent` 触发 `Null_Probe_Skill` 的概率；Task L 会把该值提升到高概率以收集“反面教材”轨迹。
+- Task K 现已具备独立入口 `liars_game_engine.analysis.task_k_gold_runner`：默认配置为 4 Mock、物理 rollout、`rollout_samples=200`、输出 `logs/task_k_gold/credit_report_final.csv`，但本地分支只做代码接线，不在非 4090 环境执行大规模金标准采样。
+- Task L 现已具备独立入口 `liars_game_engine.analysis.task_l_proxy_refine_runner`：会先生成高 Probe 负采样日志，再分别训练 elite/mixed 两个 proxy，并在最新一批 100 局 Probe 日志上做同一组 20 点 alignment 对比。
+- 2026-04-23 本地 Task L 实跑结果已落盘到 `logs/task_l_proxy_refine/proxy_refine_report.json`：新增 10,438 条负采样记录（300 局），混合模型 `value_proxy_mlp_v2.pt` 将 Pearson 从 `0.3339` 提升到 `0.4249`，但 `val_mse` 从 `0.2047` 变为 `0.2088`，仍未达到 `Pearson > 0.6`，所以 Proxy 依然不能替代物理 rollout。

@@ -1,0 +1,20 @@
+{
+  "log_root": "",
+  "log_roots": [
+    "logs/task_d_probe/probe_logs",
+    "logs/task_l_proxy_refine/negative_logs"
+  ],
+  "train_sample_count": 17268,
+  "val_sample_count": 4297,
+  "total_sample_count": 21565,
+  "epochs": 40,
+  "batch_size": 128,
+  "learning_rate": 0.001,
+  "seed": 42,
+  "device": "cpu",
+  "train_mse": 0.2054169084673986,
+  "val_mse": 0.20876328590611454,
+  "best_val_mse": 0.20876328590611454,
+  "input_dim": 8,
+  "model_path": "logs/task_l_proxy_refine/mixed_model/value_proxy_mlp_v2.pt"
+}

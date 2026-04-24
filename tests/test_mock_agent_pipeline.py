@@ -103,6 +103,40 @@ class MockAgentPipelineTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn("Null_Probe_Skill", first_agent.planner.available_skills)
 
+    async def test_mock_agent_respects_configured_null_probe_probability(self) -> None:
+        """作用: 验证 MockAgent 会使用配置中的 Null Probe 触发概率。
+
+        输入:
+        - 无（测试内构造 turn_start 场景与 100% Probe 概率）。
+
+        返回:
+        - 无。
+        """
+        agent = MockAgent(
+            player_id="p1",
+            model="m",
+            prompt_profile="baseline",
+            temperature=0.2,
+            seed=3,
+            enable_null_player_probe=True,
+            null_probe_action_probability=1.0,
+        )
+        observation = {
+            "player_id": "p1",
+            "phase": "turn_start",
+            "current_player_id": "p1",
+            "table_type": "A",
+            "private_hand": ["K", "Q", "JOKER"],
+            "pending_claim": None,
+            "must_call_liar": False,
+            "legal_actions": [{"type": "play_claim", "claim_rank": "A", "min_cards": 1, "max_cards": 3}],
+        }
+
+        decision = await agent.act(observation)
+
+        self.assertEqual(decision.selected_skill, "Null_Probe_Skill")
+        self.assertEqual(decision.skill_parameters.get("probe_type"), "Probe")
+
 
 if __name__ == "__main__":
     unittest.main()
