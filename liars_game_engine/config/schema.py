@@ -17,6 +17,7 @@ class RuntimeSettings:
     random_seed: int = 42
     fallback_action: str = "challenge"
     enable_null_player_probe: bool = False
+    null_probe_action_probability: float = 0.12
 
 
 @dataclass

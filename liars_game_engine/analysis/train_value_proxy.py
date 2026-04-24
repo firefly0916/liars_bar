@@ -6,6 +6,7 @@ import random
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Iterable
 
 import torch
 from torch import nn
@@ -271,6 +272,13 @@ def load_value_samples(log_root: Path) -> list[ValueSample]:
     return samples
 
 
+def load_value_samples_from_roots(log_roots: Iterable[Path]) -> list[ValueSample]:
+    samples: list[ValueSample] = []
+    for log_root in log_roots:
+        samples.extend(load_value_samples(Path(log_root)))
+    return samples
+
+
 def split_train_val(
     samples: list[ValueSample],
     val_ratio: float,
@@ -322,20 +330,29 @@ def _evaluate_mse(model: nn.Module, dataset: TensorDataset, device: torch.device
 
 
 def train_value_proxy(
-    log_root: Path,
     output_dir: Path,
+    log_root: Path | None = None,
+    log_roots: Iterable[Path] | None = None,
     val_ratio: float = 0.2,
     epochs: int = DEFAULT_VALUE_PROXY_EPOCHS,
     batch_size: int = 128,
     learning_rate: float = 1e-3,
     seed: int = 42,
+    model_filename: str = "value_proxy_mlp.pt",
+    metrics_filename: str = "value_proxy_metrics.json",
 ) -> dict[str, object]:
     random.seed(seed)
     torch.manual_seed(seed)
 
-    samples = load_value_samples(log_root)
+    resolved_log_roots = [Path(item) for item in log_roots] if log_roots is not None else []
+    if not resolved_log_roots:
+        if log_root is None:
+            raise RuntimeError("Either log_root or log_roots must be provided")
+        resolved_log_roots = [Path(log_root)]
+
+    samples = load_value_samples_from_roots(resolved_log_roots)
     if not samples:
-        raise RuntimeError(f"No samples found under log root: {log_root}")
+        raise RuntimeError(f"No samples found under log roots: {resolved_log_roots}")
 
     train_samples, val_samples = split_train_val(samples=samples, val_ratio=val_ratio, seed=seed)
     if not train_samples or not val_samples:
@@ -379,13 +396,14 @@ def train_value_proxy(
     final_val_mse = _evaluate_mse(model=model, dataset=val_dataset, device=device)
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    model_path = output_dir / "value_proxy_mlp.pt"
-    metrics_path = output_dir / "value_proxy_metrics.json"
+    model_path = output_dir / model_filename
+    metrics_path = output_dir / metrics_filename
 
     torch.save(model.state_dict(), model_path)
 
     metrics = {
-        "log_root": str(log_root),
+        "log_root": str(resolved_log_roots[0]) if len(resolved_log_roots) == 1 else "",
+        "log_roots": [str(item) for item in resolved_log_roots],
         "train_sample_count": len(train_samples),
         "val_sample_count": len(val_samples),
         "total_sample_count": len(samples),
