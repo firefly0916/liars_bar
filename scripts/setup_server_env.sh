@@ -27,6 +27,6 @@ if [[ "${INSTALL_VLLM}" == "1" ]]; then
   conda run -n "${ENV_NAME}" python -m pip install vllm
 fi
 
-conda run -n "${ENV_NAME}" python -m pip install -e ".[llm]"
+conda run -n "${ENV_NAME}" python -m pip install --no-build-isolation -e ".[llm]"
 
 echo "Server environment is ready in conda env ${ENV_NAME}."
