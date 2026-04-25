@@ -88,6 +88,8 @@
 - EXP1 / 论文数据沉淀阶段默认继续使用物理 rollout 归因；Proxy 仅保留为辅助观测、诊断与候选特征筛查工具。
 - `RuntimeSettings` 当前额外支持 `null_probe_action_probability`，用于控制 `MockAgent` 触发 `Null_Probe_Skill` 的概率；Task L 会把该值提升到高概率以收集“反面教材”轨迹。
 - Task K 现已具备独立入口 `liars_game_engine.analysis.task_k_gold_runner`：默认配置为 4 Mock、物理 rollout、`rollout_samples=200`、输出 `logs/task_k_gold/credit_report_final.csv`，但本地分支只做代码接线，不在非 4090 环境执行大规模金标准采样。
+- Task K runner 现已额外导出 `logs/task_k_gold/attributed_logs/*.jsonl`，按 `(game_id, turn, player_id)` 将 `phi` 同步回写为 `shapley_value` 与 `phi` 字段，供 `task_k_phi_distill_runner` 直接消费；原始 `baseline_logs/*.jsonl` 继续保留不变作为审计底稿。
+- Task K runner 的 CLI 现支持 `--game-count`、`--rollout-samples`、`--output-dir` 与 `--max-workers`，因此服务器可先跑小规模 smoke test，再切换到正式 2000x200 采样而无需改代码。
 - Task L 现已具备独立入口 `liars_game_engine.analysis.task_l_proxy_refine_runner`：会先生成高 Probe 负采样日志，再分别训练 elite/mixed 两个 proxy，并在最新一批 100 局 Probe 日志上做同一组 20 点 alignment 对比。
 - 2026-04-23 本地 Task L 实跑结果已落盘到 `logs/task_l_proxy_refine/proxy_refine_report.json`：新增 10,438 条负采样记录（300 局），混合模型 `value_proxy_mlp_v2.pt` 将 Pearson 从 `0.3339` 提升到 `0.4249`，但 `val_mse` 从 `0.2047` 变为 `0.2088`，仍未达到 `Pearson > 0.6`，所以 Proxy 依然不能替代物理 rollout。
 - 2026-04-24 已按主控要求放弃 9D 路线并回滚到 `d2a3bc7` 的 8D 基线；随后在 `train_value_proxy.py` 中加入“跳过少于 3 回合对局”的训练过滤并重训。结果显示当前 elite/negative 两批日志的短局数都为 `0`，所以过滤没有改变有效训练集，重训后的指标仍基本等于 2026-04-23：elite `val_mse=0.2047`、Pearson=`0.3339`，mixed `val_mse=0.2088`、Pearson=`0.4249`。

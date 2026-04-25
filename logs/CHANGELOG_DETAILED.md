@@ -1,5 +1,14 @@
 # CHANGELOG DETAILED
 
+## 2026-04-25 / Session 1
+
+| File | Start Line | Change | Detail |
+|---|---:|:---:|---|
+| `liars_game_engine/analysis/task_k_gold_runner.py` | 1 | `~` | 新增 `attributed_logs` 导出逻辑，把逐条 `phi` 回写为 `shapley_value`/`phi` 并补充审计字段；同时新增 CLI 参数支持服务器 smoke/full 两阶段运行。 |
+| `tests/test_task_k_task_l_runners.py` | 1 | `~` | 新增 Task K attributed log 导出断言与 CLI 覆写断言，并补齐原有 Task K 测试夹具使其包含最小 baseline JSONL。 |
+| `PROJECT_MEMORY.md` | 90 | `~` | 记录 Task K 现需导出 `attributed_logs/*.jsonl` 供 `task_k_phi_distill_runner` 直接消费，以及新的 CLI 覆写能力。 |
+| `logs/CHANGELOG_DAILY.md` | 1 | `~` | 记录 Task K 标签落盘修复、CLI 参数补充和本地 smoke 验证结果。 |
+
 ## 2026-04-23 / Session 1
 
 | File | Start Line | Change | Detail |

@@ -1,5 +1,13 @@
 # CHANGELOG DAILY
 
+## 2026-04-25
+
+### Session 1 - Task K label persistence repair
+- 复核确认 `task_k_gold_runner` 仅导出聚合 `credit_report_final.csv`，没有把逐条 `phi/shapley_value` 回写进 JSONL，因此服务器同步回来的 `baseline_logs` 无法直接用于 `task_k_phi_distill_runner`。
+- 新增 `attributed_logs/*.jsonl` 导出：按 `(game_id, turn, player_id)` 对齐归因结果，并把 `phi` 同步落盘到 `shapley_value` 与 `phi` 字段，同时补充 `value_action/value_counterfactual/winner/rollout_samples` 等审计字段。
+- 为 `task_k_gold_runner` 新增 CLI 参数 `--game-count`、`--rollout-samples`、`--output-dir`、`--max-workers`，支持服务器先跑 `10x2` smoke test，再跑 `2000x200` 正式采样。
+- 验证通过：`tests.test_task_k_task_l_runners`、`tests.test_task_k_phi_distill_runner` 全绿；本地真实 `1x1` smoke run 已落盘 `baseline_logs`、`attributed_logs` 与 `credit_report_final.csv`。
+
 ## 2026-04-17
 
 ### Session 1 - Task C Shapley sampling & algorithm validation pipeline

@@ -1,9 +1,12 @@
+import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 from liars_game_engine.analysis.shapley_analyzer import ShapleyAttribution
+from liars_game_engine.analysis import task_k_gold_runner
 from liars_game_engine.analysis.task_k_gold_runner import run_task_k_gold_pipeline
 from liars_game_engine.analysis.task_l_proxy_refine_runner import (
     _build_task_l_negative_settings,
@@ -64,28 +67,159 @@ class TaskKTaskLRunnerTest(unittest.TestCase):
             rollout_samples=200,
         )
 
-        with tempfile.TemporaryDirectory() as temp_dir, patch(
-            "liars_game_engine.analysis.task_k_gold_runner.load_settings",
-            return_value=self._make_settings(),
-        ), patch(
-            "liars_game_engine.analysis.task_k_gold_runner.generate_baseline_logs",
-            return_value=[Path(temp_dir) / "g1.jsonl"],
-        ), patch(
-            "liars_game_engine.analysis.task_k_gold_runner.asyncio.run",
-            side_effect=lambda result: result,
-        ), patch(
-            "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.analyze_logs",
-            return_value=([fake_attr], object()),
-        ), patch(
-            "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.export_credit_report",
-            side_effect=lambda attributions, output_path: Path(output_path),
-        ):
-            summary = run_task_k_gold_pipeline(output_dir=temp_dir, game_count=2, rollout_samples=200, max_workers=24)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            baseline_log = Path(temp_dir) / "g1.jsonl"
+            baseline_log.write_text(
+                json.dumps(
+                    {
+                        "turn": 1,
+                        "player_id": "p1",
+                        "skill_name": "Truthful_Action",
+                        "observation": {
+                            "player_id": "p1",
+                            "phase": "turn_start",
+                            "table_type": "A",
+                            "must_call_liar": False,
+                            "alive_players": ["p1", "p2"],
+                            "private_hand": ["A", "Q"],
+                            "player_states": {"p1": {"death_probability": 0.0}},
+                            "pending_claim": None,
+                        },
+                        "action": {"type": "play_claim", "claim_rank": "A", "cards": ["A"]},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            with patch(
+                "liars_game_engine.analysis.task_k_gold_runner.load_settings",
+                return_value=self._make_settings(),
+            ), patch(
+                "liars_game_engine.analysis.task_k_gold_runner.generate_baseline_logs",
+                return_value=[baseline_log],
+            ), patch(
+                "liars_game_engine.analysis.task_k_gold_runner.asyncio.run",
+                side_effect=lambda result: result,
+            ), patch(
+                "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.analyze_logs",
+                return_value=([fake_attr], object()),
+            ), patch(
+                "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.export_credit_report",
+                side_effect=lambda attributions, output_path: Path(output_path),
+            ):
+                summary = run_task_k_gold_pipeline(
+                    output_dir=temp_dir,
+                    game_count=2,
+                    rollout_samples=200,
+                    max_workers=24,
+                )
 
         self.assertEqual(summary["rollout_samples"], 200)
         self.assertEqual(summary["max_workers"], 24)
         self.assertTrue(str(summary["credit_report"]).endswith("credit_report_final.csv"))
         self.assertIn("average_seconds_per_attribution", summary)
+
+    def test_task_k_pipeline_exports_attributed_logs_with_shapley_labels(self) -> None:
+        fake_attr = ShapleyAttribution(
+            game_id="g1",
+            turn=1,
+            player_id="p1",
+            skill_name="Truthful_Action",
+            state_feature="phase=turn_start|table=A|risk=0-1/6|must_call_liar=False",
+            death_prob_bucket="0-1/6",
+            winner="p1",
+            value_action=0.8,
+            value_counterfactual=0.4,
+            phi=0.4,
+            rollout_samples=200,
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            baseline_log = Path(temp_dir) / "g1.jsonl"
+            baseline_log.write_text(
+                json.dumps(
+                    {
+                        "turn": 1,
+                        "player_id": "p1",
+                        "skill_name": "Truthful_Action",
+                        "observation": {
+                            "player_id": "p1",
+                            "phase": "turn_start",
+                            "table_type": "A",
+                            "must_call_liar": False,
+                            "alive_players": ["p1", "p2"],
+                            "private_hand": ["A", "Q"],
+                            "player_states": {"p1": {"death_probability": 0.0}},
+                            "pending_claim": None,
+                        },
+                        "action": {"type": "play_claim", "claim_rank": "A", "cards": ["A"]},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            with patch(
+                "liars_game_engine.analysis.task_k_gold_runner.load_settings",
+                return_value=self._make_settings(),
+            ), patch(
+                "liars_game_engine.analysis.task_k_gold_runner.generate_baseline_logs",
+                return_value=[baseline_log],
+            ), patch(
+                "liars_game_engine.analysis.task_k_gold_runner.asyncio.run",
+                side_effect=lambda result: result,
+            ), patch(
+                "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.analyze_logs",
+                return_value=([fake_attr], object()),
+            ), patch(
+                "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.export_credit_report",
+                side_effect=lambda attributions, output_path: Path(output_path),
+            ):
+                summary = run_task_k_gold_pipeline(
+                    output_dir=temp_dir,
+                    game_count=1,
+                    rollout_samples=200,
+                    max_workers=24,
+                )
+
+            attributed_dir = Path(summary["attributed_dir"])
+            attributed_log = attributed_dir / "g1.jsonl"
+            self.assertTrue(attributed_log.exists())
+
+            attributed_records = [json.loads(line) for line in attributed_log.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(len(attributed_records), 1)
+            self.assertAlmostEqual(attributed_records[0]["shapley_value"], 0.4)
+            self.assertAlmostEqual(attributed_records[0]["phi"], 0.4)
+
+    def test_task_k_main_parses_cli_overrides(self) -> None:
+        with patch.object(
+            task_k_gold_runner,
+            "run_task_k_gold_pipeline",
+            return_value={"credit_report": "logs/task_k_gold_smoke/credit_report_final.csv"},
+        ) as mocked_run, patch.object(
+            sys,
+            "argv",
+            [
+                "task_k_gold_runner.py",
+                "--game-count",
+                "10",
+                "--rollout-samples",
+                "2",
+                "--output-dir",
+                "logs/task_k_gold_smoke",
+                "--max-workers",
+                "4",
+            ],
+        ):
+            task_k_gold_runner.main()
+
+        mocked_run.assert_called_once_with(
+            game_count=10,
+            rollout_samples=2,
+            output_dir="logs/task_k_gold_smoke",
+            max_workers=4,
+        )
 
     def test_task_l_pipeline_returns_comparison_summary(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, patch(
