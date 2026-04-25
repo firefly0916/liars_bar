@@ -9,6 +9,15 @@
 | `PROJECT_MEMORY.md` | 90 | `~` | 记录 Task K 现需导出 `attributed_logs/*.jsonl` 供 `task_k_phi_distill_runner` 直接消费，以及新的 CLI 覆写能力。 |
 | `logs/CHANGELOG_DAILY.md` | 1 | `~` | 记录 Task K 标签落盘修复、CLI 参数补充和本地 smoke 验证结果。 |
 
+## 2026-04-25 / Session 2
+
+| File | Start Line | Change | Detail |
+|---|---:|:---:|---|
+| `liars_game_engine/analysis/task_k_backfill_labels.py` | 1 | `+` | 新增离线回填脚本：读取历史 `baseline_logs/*.jsonl`，复用 `ShapleyAnalyzer.analyze_logs()` 与 `_export_attributed_logs()` 生成新的带 `shapley_value/phi` 的 `attributed_logs/*.jsonl`。 |
+| `tests/test_task_k_backfill_labels.py` | 1 | `+` | 新增离线 backfill runner 单测，锁定输入 baseline log、输出 attributed log 与 summary 字段。 |
+| `PROJECT_MEMORY.md` | 92 | `~` | 补充旧 Task K baseline 日志可通过 `task_k_backfill_labels` 进行离线归因回填的约束。 |
+| `logs/CHANGELOG_DAILY.md` | 7 | `~` | 记录离线回填 runner、新增测试和真实旧日志 smoke backfill 结果。 |
+
 ## 2026-04-23 / Session 1
 
 | File | Start Line | Change | Detail |

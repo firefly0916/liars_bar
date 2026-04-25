@@ -8,6 +8,12 @@
 - 为 `task_k_gold_runner` 新增 CLI 参数 `--game-count`、`--rollout-samples`、`--output-dir`、`--max-workers`，支持服务器先跑 `10x2` smoke test，再跑 `2000x200` 正式采样。
 - 验证通过：`tests.test_task_k_task_l_runners`、`tests.test_task_k_phi_distill_runner` 全绿；本地真实 `1x1` smoke run 已落盘 `baseline_logs`、`attributed_logs` 与 `credit_report_final.csv`。
 
+### Session 2 - Offline backfill runner for old Task K logs
+- 新增 `liars_game_engine.analysis.task_k_backfill_labels`，用于对历史上“不带 `shapley_value/phi` 的 baseline_logs”做离线归因回填，并输出新的 `attributed_logs/*.jsonl`。
+- 回填脚本复用现有 `ShapleyAnalyzer.analyze_logs()` 和 `task_k_gold_runner` 的标签导出逻辑，不新增第二套标签格式。
+- 新增 `tests.test_task_k_backfill_labels`，锁定输入 baseline log、输出 attributed log 与 summary 字段。
+- 本地真实 smoke backfill 已验证：对旧服务器日志中的 1 个 JSONL 以 `rollout_samples=2` 成功补出 `40/40` 条带 `shapley_value/phi` 的记录。
+
 ## 2026-04-17
 
 ### Session 1 - Task C Shapley sampling & algorithm validation pipeline
