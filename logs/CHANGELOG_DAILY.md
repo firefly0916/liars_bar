@@ -14,6 +14,11 @@
 - 新增 `tests.test_task_k_backfill_labels`，锁定输入 baseline log、输出 attributed log 与 summary 字段。
 - 本地真实 smoke backfill 已验证：对旧服务器日志中的 1 个 JSONL 以 `rollout_samples=2` 成功补出 `40/40` 条带 `shapley_value/phi` 的记录。
 
+### Session 3 - Backfill progress logging for server runs
+- 为 `task_k_backfill_labels` 新增 `--progress-interval-logs`，按批处理旧 `baseline_logs` 并在每批完成后实时打印进度。
+- 新增 `progress.log` 落盘到 `output_dir` 上级目录，包含 `completed_logs/total_logs`、批次耗时、累计归因数与 ETA，便于服务器上 `tail -f` 监控。
+- 新增/更新回归测试，验证 `progress.log` 字段与批次行为；真实旧日志 smoke backfill 现已能同时落盘 `attributed_logs` 与 `progress.log`。
+
 ## 2026-04-17
 
 ### Session 1 - Task C Shapley sampling & algorithm validation pipeline

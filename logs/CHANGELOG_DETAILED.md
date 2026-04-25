@@ -18,6 +18,15 @@
 | `PROJECT_MEMORY.md` | 92 | `~` | 补充旧 Task K baseline 日志可通过 `task_k_backfill_labels` 进行离线归因回填的约束。 |
 | `logs/CHANGELOG_DAILY.md` | 7 | `~` | 记录离线回填 runner、新增测试和真实旧日志 smoke backfill 结果。 |
 
+## 2026-04-25 / Session 3
+
+| File | Start Line | Change | Detail |
+|---|---:|:---:|---|
+| `liars_game_engine/analysis/task_k_backfill_labels.py` | 1 | `~` | 新增批处理回填、`progress.log` 追加写入、stdout 实时进度行与 `--progress-interval-logs` CLI 参数，适配服务器长时间后台运行。 |
+| `tests/test_task_k_backfill_labels.py` | 1 | `~` | 新增 progress log 批处理断言，并更新 summary 字段期望。 |
+| `PROJECT_MEMORY.md` | 93 | `~` | 记录 backfill runner 现支持 `progress.log` 与可 tail 的批次输出。 |
+| `logs/CHANGELOG_DAILY.md` | 13 | `~` | 记录 backfill 进度日志能力与真实 smoke backfill 新验证结果。 |
+
 ## 2026-04-23 / Session 1
 
 | File | Start Line | Change | Detail |
