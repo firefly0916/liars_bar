@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from liars_game_engine.analysis.shapley_analyzer import ShapleyAttribution
-from liars_game_engine.analysis.task_k_gold_runner import run_task_k_gold_pipeline
+from liars_game_engine.analysis.task_k_gold_runner import main, run_task_k_gold_pipeline
 from liars_game_engine.analysis.task_l_proxy_refine_runner import (
     _build_task_l_negative_settings,
     run_task_l_proxy_refine_pipeline,
@@ -80,6 +80,10 @@ class TaskKTaskLRunnerTest(unittest.TestCase):
             "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.export_credit_report",
             side_effect=lambda attributions, output_path: Path(output_path),
         ):
+            (Path(temp_dir) / "g1.jsonl").write_text(
+                '{"turn": 1, "player_id": "p1", "skill_name": "Truthful_Action"}\n',
+                encoding="utf-8",
+            )
             summary = run_task_k_gold_pipeline(
                 output_dir=temp_dir,
                 game_count=2,
@@ -129,6 +133,14 @@ class TaskKTaskLRunnerTest(unittest.TestCase):
             "liars_game_engine.analysis.task_k_gold_runner.time.perf_counter",
             side_effect=[10.0, 30.0, 40.0, 70.0],
         ):
+            (Path(temp_dir) / "g1.jsonl").write_text(
+                '{"turn": 1, "player_id": "p1", "skill_name": "Truthful_Action"}\n',
+                encoding="utf-8",
+            )
+            (Path(temp_dir) / "g2.jsonl").write_text(
+                '{"turn": 1, "player_id": "p1", "skill_name": "Truthful_Action"}\n',
+                encoding="utf-8",
+            )
             summary = run_task_k_gold_pipeline(
                 output_dir=temp_dir,
                 game_count=100,
@@ -150,6 +162,148 @@ class TaskKTaskLRunnerTest(unittest.TestCase):
         self.assertIn("percent=100.0%", progress_lines[1])
         self.assertIn("eta_seconds=0.000000", progress_lines[1])
         self.assertIn("progress_log", summary)
+
+    def test_task_k_pipeline_reuses_existing_baseline_logs_without_regenerating(self) -> None:
+        fake_attr = ShapleyAttribution(
+            game_id="g1",
+            turn=1,
+            player_id="p1",
+            skill_name="Truthful_Action",
+            state_feature="phase=turn_start|table=A|risk=0-1/6|must_call_liar=False",
+            death_prob_bucket="0-1/6",
+            winner="p1",
+            value_action=0.8,
+            value_counterfactual=0.4,
+            phi=0.4,
+            rollout_samples=200,
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir, patch(
+            "liars_game_engine.analysis.task_k_gold_runner.load_settings",
+            return_value=self._make_settings(),
+        ), patch(
+            "liars_game_engine.analysis.task_k_gold_runner.generate_baseline_logs",
+            side_effect=AssertionError("baseline generation should not run"),
+        ), patch(
+            "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.analyze_logs",
+            return_value=([fake_attr], object()),
+        ) as analyze_logs, patch(
+            "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.export_credit_report",
+            side_effect=lambda attributions, output_path: Path(output_path),
+        ):
+            baseline_dir = Path(temp_dir) / "existing_baseline"
+            baseline_dir.mkdir(parents=True)
+            existing_logs = [
+                baseline_dir / "g1.jsonl",
+                baseline_dir / "g2.jsonl",
+            ]
+            for log_path in existing_logs:
+                log_path.write_text("{}", encoding="utf-8")
+
+            summary = run_task_k_gold_pipeline(
+                output_dir=Path(temp_dir) / "output",
+                existing_baseline_dir=baseline_dir,
+                game_count=999,
+                rollout_samples=200,
+                max_workers=4,
+                progress_interval_games=10,
+            )
+
+        analyze_logs.assert_called_once_with(existing_logs)
+        self.assertEqual(summary["baseline_game_count"], 2)
+        self.assertEqual(summary["baseline_dir"], str(baseline_dir))
+
+    def test_task_k_pipeline_exports_attributed_logs_with_phi_labels(self) -> None:
+        fake_attr = ShapleyAttribution(
+            game_id="g1",
+            turn=1,
+            player_id="p1",
+            skill_name="Truthful_Action",
+            state_feature="phase=turn_start|table=A|risk=0-1/6|must_call_liar=False",
+            death_prob_bucket="0-1/6",
+            winner="p1",
+            value_action=0.8,
+            value_counterfactual=0.4,
+            phi=0.4,
+            rollout_samples=200,
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir, patch(
+            "liars_game_engine.analysis.task_k_gold_runner.load_settings",
+            return_value=self._make_settings(),
+        ), patch(
+            "liars_game_engine.analysis.task_k_gold_runner.generate_baseline_logs",
+            return_value=[Path(temp_dir) / "g1.jsonl"],
+        ), patch(
+            "liars_game_engine.analysis.task_k_gold_runner.asyncio.run",
+            side_effect=lambda result: result,
+        ), patch(
+            "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.analyze_logs",
+            return_value=([fake_attr], object()),
+        ), patch(
+            "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.export_credit_report",
+            side_effect=lambda attributions, output_path: Path(output_path),
+        ):
+            baseline_path = Path(temp_dir) / "g1.jsonl"
+            baseline_path.write_text(
+                (
+                    '{"turn": 1, "player_id": "p1", "skill_name": "Truthful_Action"}\n'
+                    '{"turn": 2, "player_id": "p2", "skill_name": "Calculated_Bluff"}\n'
+                ),
+                encoding="utf-8",
+            )
+
+            summary = run_task_k_gold_pipeline(
+                output_dir=Path(temp_dir) / "output",
+                game_count=1,
+                rollout_samples=200,
+                max_workers=2,
+                progress_interval_games=1,
+            )
+
+            attributed_dir = Path(summary["attributed_dir"])
+            attributed_path = attributed_dir / "g1.jsonl"
+            attributed_lines = attributed_path.read_text(encoding="utf-8").splitlines()
+            self.assertTrue(attributed_dir.exists())
+            self.assertTrue(attributed_path.exists())
+            self.assertEqual(len(attributed_lines), 2)
+            self.assertIn('"shapley_value": 0.4', attributed_lines[0])
+            self.assertIn('"phi": 0.4', attributed_lines[0])
+            self.assertNotIn('"shapley_value"', attributed_lines[1])
+
+    def test_task_k_main_parses_cli_arguments(self) -> None:
+        with patch(
+            "liars_game_engine.analysis.task_k_gold_runner.run_task_k_gold_pipeline",
+            return_value={"credit_report": "logs/task_k_gold/credit_report_final.csv"},
+        ) as run_pipeline, patch(
+            "sys.argv",
+            [
+                "task_k_gold_runner.py",
+                "--game-count",
+                "2",
+                "--rollout-samples",
+                "5",
+                "--max-workers",
+                "2",
+                "--progress-interval-games",
+                "1",
+                "--output-dir",
+                "/tmp/task_k_smoke",
+                "--existing-baseline-dir",
+                "/tmp/existing_baseline",
+            ],
+        ):
+            main()
+
+        run_pipeline.assert_called_once_with(
+            config_file="config/experiment.yaml",
+            game_count=2,
+            rollout_samples=5,
+            output_dir="/tmp/task_k_smoke",
+            max_workers=2,
+            progress_interval_games=1,
+            existing_baseline_dir="/tmp/existing_baseline",
+        )
 
     def test_task_l_pipeline_returns_comparison_summary(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, patch(
