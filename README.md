@@ -142,8 +142,9 @@ bash scripts/remote_run.sh
 这会：
 - `git pull --ff-only` 当前分支
 - 在后台启动 `conda run -n liar_bar python -m liars_game_engine.analysis.task_k_gold_runner`
-- 将 stdout/stderr 写到 `logs/task_k_gold/server-run-*.log`
-- 每 500 局把进度摘要追加到 `logs/task_k_gold/progress.log`
+- 为这次运行单独创建 `logs/task_k_gold/<timestamp>/`
+- 将 stdout/stderr 写到该目录下的 `run.log`
+- 将 `baseline_logs/`、`attributed_logs/`、`progress.log`、`credit_report_final.csv` 全部收口到同一个 run 目录
 
 如果你要运行接入本地 `vLLM` 的 LLM 对局：
 
@@ -160,6 +161,12 @@ RUN_MODE=llm OPENAI_API_KEY=EMPTY OPENAI_BASE_URL=http://127.0.0.1:8000/v1 bash 
 
 ```bash
 bash scripts/remote_run.sh
+```
+
+如果你要在前台运行并把所有产物也收进独立目录，可以执行：
+
+```bash
+bash scripts/run_task_k_gold_server.sh
 ```
 
 如果是 LLM 任务，先确认 `vLLM` 服务还在，再执行：

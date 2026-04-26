@@ -14,11 +14,14 @@ git pull --ff-only origin "${CURRENT_BRANCH}"
 
 case "${RUN_MODE}" in
   task-k)
-    RUN_LOG="logs/task_k_gold/server-run-${TIMESTAMP}.log"
-    nohup conda run -n "${ENV_NAME}" python -m liars_game_engine.analysis.task_k_gold_runner > "${RUN_LOG}" 2>&1 &
+    RUN_DIR="logs/task_k_gold/${TIMESTAMP}"
+    mkdir -p "${RUN_DIR}"
+    RUN_LOG="${RUN_DIR}/run.log"
+    nohup conda run -n "${ENV_NAME}" python -m liars_game_engine.analysis.task_k_gold_runner --output-dir "${RUN_DIR}" > "${RUN_LOG}" 2>&1 &
     echo "Started Task K gold pipeline in background."
+    echo "Output dir: ${RUN_DIR}"
     echo "Run log: ${RUN_LOG}"
-    echo "Progress log: logs/task_k_gold/progress.log"
+    echo "Progress log: ${RUN_DIR}/progress.log"
     ;;
   llm)
     export OPENAI_API_KEY="${OPENAI_API_KEY:-${VLLM_API_KEY:-EMPTY}}"
