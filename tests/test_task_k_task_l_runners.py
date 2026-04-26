@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -162,6 +163,97 @@ class TaskKTaskLRunnerTest(unittest.TestCase):
         self.assertIn("percent=100.0%", progress_lines[1])
         self.assertIn("eta_seconds=0.000000", progress_lines[1])
         self.assertIn("progress_log", summary)
+
+    def test_task_k_pipeline_writes_diagnostics_events(self) -> None:
+        fake_attr = ShapleyAttribution(
+            game_id="g1",
+            turn=1,
+            player_id="p1",
+            skill_name="Truthful_Action",
+            state_feature="phase=turn_start|table=A|risk=0-1/6|must_call_liar=False",
+            death_prob_bucket="0-1/6",
+            winner="p1",
+            value_action=0.8,
+            value_counterfactual=0.4,
+            phi=0.4,
+            rollout_samples=200,
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir, patch(
+            "liars_game_engine.analysis.task_k_gold_runner.load_settings",
+            return_value=self._make_settings(),
+        ), patch(
+            "liars_game_engine.analysis.task_k_gold_runner.generate_baseline_logs",
+            return_value=[Path(temp_dir) / "g1.jsonl"],
+        ), patch(
+            "liars_game_engine.analysis.task_k_gold_runner.asyncio.run",
+            side_effect=lambda result: result,
+        ), patch(
+            "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.analyze_logs",
+            return_value=([fake_attr], object()),
+        ), patch(
+            "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.export_credit_report",
+            side_effect=lambda attributions, output_path: Path(output_path),
+        ):
+            (Path(temp_dir) / "g1.jsonl").write_text(
+                '{"turn": 1, "player_id": "p1", "skill_name": "Truthful_Action"}\n',
+                encoding="utf-8",
+            )
+            summary = run_task_k_gold_pipeline(
+                output_dir=Path(temp_dir) / "output",
+                game_count=1,
+                rollout_samples=200,
+                max_workers=2,
+                progress_interval_games=1,
+            )
+
+            diagnostics_path = Path(summary["diagnostics_log"])
+            events = [json.loads(line) for line in diagnostics_path.read_text(encoding="utf-8").splitlines()]
+
+            self.assertTrue(diagnostics_path.exists())
+            self.assertEqual(events[0]["event"], "pipeline_start")
+            self.assertEqual(events[1]["event"], "batch_completed")
+            self.assertEqual(events[-1]["event"], "pipeline_finished")
+            self.assertIn("resident_memory_mb", events[0])
+            self.assertIn("child_cpu_seconds", events[1])
+
+    def test_task_k_pipeline_writes_failure_log_on_exception(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir, patch(
+            "liars_game_engine.analysis.task_k_gold_runner.load_settings",
+            return_value=self._make_settings(),
+        ), patch(
+            "liars_game_engine.analysis.task_k_gold_runner.generate_baseline_logs",
+            return_value=[Path(temp_dir) / "g1.jsonl"],
+        ), patch(
+            "liars_game_engine.analysis.task_k_gold_runner.asyncio.run",
+            side_effect=lambda result: result,
+        ), patch(
+            "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.analyze_logs",
+            side_effect=RuntimeError("boom"),
+        ):
+            (Path(temp_dir) / "g1.jsonl").write_text(
+                '{"turn": 1, "player_id": "p1", "skill_name": "Truthful_Action"}\n',
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(RuntimeError, "boom"):
+                run_task_k_gold_pipeline(
+                    output_dir=Path(temp_dir) / "output",
+                    game_count=1,
+                    rollout_samples=200,
+                    max_workers=2,
+                    progress_interval_games=1,
+                )
+
+            output_dir = Path(temp_dir) / "output"
+            diagnostics_path = output_dir / "diagnostics.jsonl"
+            failure_log_path = output_dir / "failure.log"
+            events = [json.loads(line) for line in diagnostics_path.read_text(encoding="utf-8").splitlines()]
+            self.assertTrue(failure_log_path.exists())
+            self.assertIn("RuntimeError: boom", failure_log_path.read_text(encoding="utf-8"))
+            self.assertEqual(events[-1]["event"], "pipeline_failed")
+            self.assertEqual(events[-1]["error_type"], "RuntimeError")
+            self.assertIn("traceback", events[-1])
 
     def test_task_k_pipeline_reuses_existing_baseline_logs_without_regenerating(self) -> None:
         fake_attr = ShapleyAttribution(

@@ -14,4 +14,4 @@ echo "Starting Task K gold run. stdout/stderr -> ${run_log}"
 echo "Output dir -> ${run_dir}"
 echo "Progress checkpoints -> ${run_dir}/progress.log"
 
-conda run -n liar_bar python -m liars_game_engine.analysis.task_k_gold_runner --output-dir "${run_dir}" "$@" 2>&1 | tee "$run_log"
+conda run --no-capture-output -n liar_bar python -u -m liars_game_engine.analysis.task_k_gold_runner --output-dir "${run_dir}" "$@" 2>&1 | tee "$run_log"

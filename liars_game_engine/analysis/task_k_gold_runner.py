@@ -6,6 +6,8 @@ import inspect
 import json
 import os
 import time
+import traceback
+from datetime import datetime, timezone
 from pathlib import Path
 
 from liars_game_engine.analysis.shapley_analyzer import (
@@ -60,6 +62,67 @@ def _append_progress_log(
     with progress_log_path.open("a", encoding="utf-8") as handle:
         handle.write(line + "\n")
     print(line, flush=True)
+
+
+def _read_resident_memory_mb() -> float | None:
+    status_path = Path("/proc/self/status")
+    if not status_path.exists():
+        return None
+
+    for line in status_path.read_text(encoding="utf-8").splitlines():
+        if not line.startswith("VmRSS:"):
+            continue
+        parts = line.split()
+        if len(parts) < 2:
+            return None
+        return round(int(parts[1]) / 1024.0, 2)
+    return None
+
+
+def _runtime_snapshot() -> dict[str, object]:
+    try:
+        load_1m, load_5m, load_15m = os.getloadavg()
+    except OSError:
+        load_1m, load_5m, load_15m = (None, None, None)
+
+    cpu_times = os.times()
+    cpu_count = os.cpu_count() or 1
+    return {
+        "pid": os.getpid(),
+        "ppid": os.getppid(),
+        "cpu_count": cpu_count,
+        "loadavg_1m": load_1m,
+        "loadavg_5m": load_5m,
+        "loadavg_15m": load_15m,
+        "load_per_cpu_1m": (round(load_1m / cpu_count, 4) if load_1m is not None else None),
+        "process_cpu_seconds": round(cpu_times.user + cpu_times.system, 6),
+        "child_cpu_seconds": round(cpu_times.children_user + cpu_times.children_system, 6),
+        "resident_memory_mb": _read_resident_memory_mb(),
+    }
+
+
+def _append_diagnostics_event(
+    diagnostics_log_path: Path,
+    *,
+    event: str,
+    **fields: object,
+) -> None:
+    diagnostics_log_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "event": event,
+        **_runtime_snapshot(),
+        **fields,
+    }
+    with diagnostics_log_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+
+def _write_failure_log(failure_log_path: Path, exception: BaseException) -> str:
+    failure_log_path.parent.mkdir(parents=True, exist_ok=True)
+    tb = "".join(traceback.format_exception(type(exception), exception, exception.__traceback__))
+    failure_log_path.write_text(tb, encoding="utf-8")
+    return tb
 
 
 def _export_attributed_logs(
@@ -129,115 +192,179 @@ def run_task_k_gold_pipeline(
     返回:
     - dict[str, object]: 基线日志、报表路径与平均归因耗时摘要。
     """
-    settings = load_settings(config_file=config_file)
-    task_settings = _ensure_four_mock_players(settings)
-
     output_path = Path(output_dir)
     progress_log_path = output_path / "progress.log"
+    diagnostics_log_path = output_path / "diagnostics.jsonl"
+    failure_log_path = output_path / "failure.log"
     progress_log_path.parent.mkdir(parents=True, exist_ok=True)
     progress_log_path.write_text("", encoding="utf-8")
+    diagnostics_log_path.write_text("", encoding="utf-8")
+    if failure_log_path.exists():
+        failure_log_path.unlink()
 
-    existing_baseline_path = Path(existing_baseline_dir) if existing_baseline_dir is not None else None
-    if existing_baseline_path is not None:
-        baseline_dir = existing_baseline_path
-        baseline_logs = sorted(path for path in baseline_dir.glob("*.jsonl") if path.is_file())
-        if not baseline_logs:
-            raise RuntimeError(f"No baseline logs found under existing_baseline_dir={baseline_dir}")
-    else:
-        baseline_dir = output_path / "baseline_logs"
-        baseline_logs = []
+    try:
+        settings = load_settings(config_file=config_file)
+        task_settings = _ensure_four_mock_players(settings)
+        analyzer_workers = max_workers if max_workers is not None else (os.cpu_count() or 1)
+        _append_diagnostics_event(
+            diagnostics_log_path,
+            event="pipeline_start",
+            config_file=str(config_file),
+            game_count=int(game_count),
+            rollout_samples=int(rollout_samples),
+            output_dir=str(output_path),
+            max_workers=max(1, analyzer_workers),
+            progress_interval_games=int(progress_interval_games),
+            existing_baseline_dir=(str(existing_baseline_dir) if existing_baseline_dir is not None else None),
+            random_seed=int(task_settings.runtime.random_seed),
+        )
 
-    analyzer_workers = max_workers if max_workers is not None else (os.cpu_count() or 1)
-    analyzer = ShapleyAnalyzer(
-        settings=task_settings,
-        rollout_samples=rollout_samples,
-        rollout_policy="random",
-        max_workers=max(1, analyzer_workers),
-        baseline_mode=BASELINE_MODE_RANDOM_LEGAL_AGENT,
-    )
+        existing_baseline_path = Path(existing_baseline_dir) if existing_baseline_dir is not None else None
+        if existing_baseline_path is not None:
+            baseline_dir = existing_baseline_path
+            baseline_logs = sorted(path for path in baseline_dir.glob("*.jsonl") if path.is_file())
+            if not baseline_logs:
+                raise RuntimeError(f"No baseline logs found under existing_baseline_dir={baseline_dir}")
+        else:
+            baseline_dir = output_path / "baseline_logs"
+            baseline_logs = []
 
-    all_attributions = []
-    attributed_dir = output_path / "attributed_logs"
-    completed_games = 0
-    elapsed = 0.0
-    batch_index = 0
-    batch_size = max(1, int(progress_interval_games))
-    if existing_baseline_path is None:
-        games_remaining = max(1, int(game_count))
-        while completed_games < games_remaining:
-            batch_index += 1
-            current_batch_game_count = min(batch_size, games_remaining - completed_games)
-            batch_logs = _resolve_async_result(
-                generate_baseline_logs(task_settings, game_count=current_batch_game_count, log_dir=baseline_dir)
-            )
-            baseline_logs.extend(batch_logs)
+        analyzer = ShapleyAnalyzer(
+            settings=task_settings,
+            rollout_samples=rollout_samples,
+            rollout_policy="random",
+            max_workers=max(1, analyzer_workers),
+            baseline_mode=BASELINE_MODE_RANDOM_LEGAL_AGENT,
+        )
 
-            batch_start = time.perf_counter()
-            batch_attributions, _ = analyzer.analyze_logs(batch_logs)
-            batch_elapsed = max(0.0, time.perf_counter() - batch_start)
-            elapsed += batch_elapsed
-            all_attributions.extend(batch_attributions)
-            _export_attributed_logs(
-                baseline_logs=batch_logs,
-                attributions=batch_attributions,
-                output_dir=attributed_dir,
-            )
+        all_attributions = []
+        attributed_dir = output_path / "attributed_logs"
+        completed_games = 0
+        elapsed = 0.0
+        batch_index = 0
+        batch_size = max(1, int(progress_interval_games))
+        if existing_baseline_path is None:
+            games_remaining = max(1, int(game_count))
+            while completed_games < games_remaining:
+                batch_index += 1
+                current_batch_game_count = min(batch_size, games_remaining - completed_games)
+                batch_logs = _resolve_async_result(
+                    generate_baseline_logs(task_settings, game_count=current_batch_game_count, log_dir=baseline_dir)
+                )
+                baseline_logs.extend(batch_logs)
 
-            completed_games += len(batch_logs)
-            _append_progress_log(
-                progress_log_path,
-                completed_games=completed_games,
-                total_games=games_remaining,
-                batch_index=batch_index,
-                batch_game_count=len(batch_logs),
-                cumulative_attribution_count=len(all_attributions),
-                batch_elapsed_seconds=batch_elapsed,
-                total_elapsed_seconds=elapsed,
-            )
-    else:
-        games_remaining = len(baseline_logs)
-        while completed_games < games_remaining:
-            batch_index += 1
-            batch_logs = baseline_logs[completed_games : completed_games + batch_size]
+                batch_start = time.perf_counter()
+                batch_attributions, _ = analyzer.analyze_logs(batch_logs)
+                batch_elapsed = max(0.0, time.perf_counter() - batch_start)
+                elapsed += batch_elapsed
+                all_attributions.extend(batch_attributions)
+                _export_attributed_logs(
+                    baseline_logs=batch_logs,
+                    attributions=batch_attributions,
+                    output_dir=attributed_dir,
+                )
 
-            batch_start = time.perf_counter()
-            batch_attributions, _ = analyzer.analyze_logs(batch_logs)
-            batch_elapsed = max(0.0, time.perf_counter() - batch_start)
-            elapsed += batch_elapsed
-            all_attributions.extend(batch_attributions)
-            _export_attributed_logs(
-                baseline_logs=batch_logs,
-                attributions=batch_attributions,
-                output_dir=attributed_dir,
-            )
+                completed_games += len(batch_logs)
+                _append_progress_log(
+                    progress_log_path,
+                    completed_games=completed_games,
+                    total_games=games_remaining,
+                    batch_index=batch_index,
+                    batch_game_count=len(batch_logs),
+                    cumulative_attribution_count=len(all_attributions),
+                    batch_elapsed_seconds=batch_elapsed,
+                    total_elapsed_seconds=elapsed,
+                )
+                _append_diagnostics_event(
+                    diagnostics_log_path,
+                    event="batch_completed",
+                    batch_index=batch_index,
+                    completed_games=completed_games,
+                    total_games=games_remaining,
+                    batch_game_count=len(batch_logs),
+                    cumulative_attributions=len(all_attributions),
+                    batch_elapsed_seconds=round(batch_elapsed, 6),
+                    total_elapsed_seconds=round(elapsed, 6),
+                    baseline_log_count=len(baseline_logs),
+                    attributed_log_count=len(list(attributed_dir.glob("*.jsonl"))),
+                )
+        else:
+            games_remaining = len(baseline_logs)
+            while completed_games < games_remaining:
+                batch_index += 1
+                batch_logs = baseline_logs[completed_games : completed_games + batch_size]
 
-            completed_games += len(batch_logs)
-            _append_progress_log(
-                progress_log_path,
-                completed_games=completed_games,
-                total_games=games_remaining,
-                batch_index=batch_index,
-                batch_game_count=len(batch_logs),
-                cumulative_attribution_count=len(all_attributions),
-                batch_elapsed_seconds=batch_elapsed,
-                total_elapsed_seconds=elapsed,
-            )
+                batch_start = time.perf_counter()
+                batch_attributions, _ = analyzer.analyze_logs(batch_logs)
+                batch_elapsed = max(0.0, time.perf_counter() - batch_start)
+                elapsed += batch_elapsed
+                all_attributions.extend(batch_attributions)
+                _export_attributed_logs(
+                    baseline_logs=batch_logs,
+                    attributions=batch_attributions,
+                    output_dir=attributed_dir,
+                )
 
-    report_path = output_path / "credit_report_final.csv"
-    analyzer.export_credit_report(attributions=all_attributions, output_path=report_path)
+                completed_games += len(batch_logs)
+                _append_progress_log(
+                    progress_log_path,
+                    completed_games=completed_games,
+                    total_games=games_remaining,
+                    batch_index=batch_index,
+                    batch_game_count=len(batch_logs),
+                    cumulative_attribution_count=len(all_attributions),
+                    batch_elapsed_seconds=batch_elapsed,
+                    total_elapsed_seconds=elapsed,
+                )
+                _append_diagnostics_event(
+                    diagnostics_log_path,
+                    event="batch_completed",
+                    batch_index=batch_index,
+                    completed_games=completed_games,
+                    total_games=games_remaining,
+                    batch_game_count=len(batch_logs),
+                    cumulative_attributions=len(all_attributions),
+                    batch_elapsed_seconds=round(batch_elapsed, 6),
+                    total_elapsed_seconds=round(elapsed, 6),
+                    baseline_log_count=len(baseline_logs),
+                    attributed_log_count=len(list(attributed_dir.glob("*.jsonl"))),
+                )
 
-    return {
-        "baseline_game_count": len(baseline_logs),
-        "baseline_dir": str(baseline_dir),
-        "attributed_dir": str(attributed_dir),
-        "attribution_count": len(all_attributions),
-        "credit_report": str(report_path),
-        "progress_log": str(progress_log_path),
-        "rollout_samples": int(rollout_samples),
-        "max_workers": max(1, analyzer_workers),
-        "attribution_elapsed_seconds": elapsed,
-        "average_seconds_per_attribution": elapsed / max(1, len(all_attributions)),
-    }
+        report_path = output_path / "credit_report_final.csv"
+        analyzer.export_credit_report(attributions=all_attributions, output_path=report_path)
+
+        summary = {
+            "baseline_game_count": len(baseline_logs),
+            "baseline_dir": str(baseline_dir),
+            "attributed_dir": str(attributed_dir),
+            "attribution_count": len(all_attributions),
+            "credit_report": str(report_path),
+            "progress_log": str(progress_log_path),
+            "diagnostics_log": str(diagnostics_log_path),
+            "rollout_samples": int(rollout_samples),
+            "max_workers": max(1, analyzer_workers),
+            "attribution_elapsed_seconds": elapsed,
+            "average_seconds_per_attribution": elapsed / max(1, len(all_attributions)),
+        }
+        _append_diagnostics_event(
+            diagnostics_log_path,
+            event="pipeline_finished",
+            completed_games=completed_games,
+            total_games=games_remaining,
+            attribution_count=len(all_attributions),
+            credit_report=str(report_path),
+        )
+        return summary
+    except BaseException as exc:
+        failure_traceback = _write_failure_log(failure_log_path, exc)
+        _append_diagnostics_event(
+            diagnostics_log_path,
+            event="pipeline_failed",
+            error_type=type(exc).__name__,
+            error_message=str(exc),
+            traceback=failure_traceback,
+        )
+        raise
 
 
 def main() -> None:

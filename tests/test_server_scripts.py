@@ -10,6 +10,8 @@ class ServerScriptsTest(unittest.TestCase):
         self.assertIn('RUN_DIR="logs/task_k_gold/${TIMESTAMP}"', content)
         self.assertIn('RUN_LOG="${RUN_DIR}/run.log"', content)
         self.assertIn('--output-dir "${RUN_DIR}"', content)
+        self.assertIn('conda run --no-capture-output -n "${ENV_NAME}"', content)
+        self.assertIn('python -u -m liars_game_engine.analysis.task_k_gold_runner', content)
         self.assertIn('echo "Output dir: ${RUN_DIR}"', content)
         self.assertIn('echo "Progress log: ${RUN_DIR}/progress.log"', content)
 
@@ -20,6 +22,8 @@ class ServerScriptsTest(unittest.TestCase):
         self.assertIn('run_dir="logs/task_k_gold/${timestamp}"', content)
         self.assertIn('run_log="${run_dir}/run.log"', content)
         self.assertIn('--output-dir "${run_dir}"', content)
+        self.assertIn('conda run --no-capture-output -n liar_bar', content)
+        self.assertIn('python -u -m liars_game_engine.analysis.task_k_gold_runner', content)
         self.assertIn('echo "Output dir -> ${run_dir}"', content)
         self.assertIn('echo "Progress checkpoints -> ${run_dir}/progress.log"', content)
 
