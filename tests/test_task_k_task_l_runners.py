@@ -96,11 +96,8 @@ class TaskKTaskLRunnerTest(unittest.TestCase):
                 "liars_game_engine.analysis.task_k_gold_runner.load_settings",
                 return_value=self._make_settings(),
             ), patch(
-                "liars_game_engine.analysis.task_k_gold_runner.generate_baseline_logs",
+                "liars_game_engine.analysis.task_k_gold_runner._generate_baseline_logs_with_progress",
                 return_value=[baseline_log],
-            ), patch(
-                "liars_game_engine.analysis.task_k_gold_runner.asyncio.run",
-                side_effect=lambda result: result,
             ), patch(
                 "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.analyze_logs",
                 return_value=([fake_attr], object()),
@@ -119,6 +116,87 @@ class TaskKTaskLRunnerTest(unittest.TestCase):
         self.assertEqual(summary["max_workers"], 24)
         self.assertTrue(str(summary["credit_report"]).endswith("credit_report_final.csv"))
         self.assertIn("average_seconds_per_attribution", summary)
+
+    def test_task_k_pipeline_writes_progress_log_per_batch(self) -> None:
+        fake_attr = ShapleyAttribution(
+            game_id="g1",
+            turn=1,
+            player_id="p1",
+            skill_name="Truthful_Action",
+            state_feature="phase=turn_start|table=A|risk=0-1/6|must_call_liar=False",
+            death_prob_bucket="0-1/6",
+            winner="p1",
+            value_action=0.8,
+            value_counterfactual=0.4,
+            phi=0.4,
+            rollout_samples=200,
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            for name in ("g1.jsonl", "g2.jsonl"):
+                (Path(temp_dir) / name).write_text(
+                    json.dumps(
+                        {
+                            "turn": 1,
+                            "player_id": "p1",
+                            "skill_name": "Truthful_Action",
+                            "observation": {
+                                "player_id": "p1",
+                                "phase": "turn_start",
+                                "table_type": "A",
+                                "must_call_liar": False,
+                                "alive_players": ["p1", "p2"],
+                                "private_hand": ["A", "Q"],
+                                "player_states": {"p1": {"death_probability": 0.0}},
+                                "pending_claim": None,
+                            },
+                            "action": {"type": "play_claim", "claim_rank": "A", "cards": ["A"]},
+                        }
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+
+            with patch(
+                "liars_game_engine.analysis.task_k_gold_runner.load_settings",
+                return_value=self._make_settings(),
+            ), patch(
+                "liars_game_engine.analysis.task_k_gold_runner._generate_baseline_logs_with_progress",
+                return_value=[
+                    Path(temp_dir) / "g1.jsonl",
+                    Path(temp_dir) / "g2.jsonl",
+                ],
+            ), patch(
+                "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.analyze_logs",
+                side_effect=[([fake_attr], object()), ([fake_attr], object())],
+            ), patch(
+                "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.export_credit_report",
+                side_effect=lambda attributions, output_path: Path(output_path),
+            ), patch(
+                "liars_game_engine.analysis.task_k_gold_runner.time.perf_counter",
+                side_effect=[10.0, 20.0, 30.0, 50.0],
+            ):
+                summary = run_task_k_gold_pipeline(
+                    output_dir=temp_dir,
+                    game_count=2,
+                    rollout_samples=200,
+                    max_workers=24,
+                    progress_interval_games=1,
+                )
+
+            progress_path = Path(summary["progress_log"])
+            progress_lines = progress_path.read_text(encoding="utf-8").splitlines()
+
+        self.assertEqual(len(progress_lines), 2)
+        self.assertIn("phase=attribution", progress_lines[0])
+        self.assertIn("completed_games=1/2", progress_lines[0])
+        self.assertIn("percent=50.0%", progress_lines[0])
+        self.assertIn("eta_seconds=10.000000", progress_lines[0])
+        self.assertIn("phase=attribution", progress_lines[1])
+        self.assertIn("completed_games=2/2", progress_lines[1])
+        self.assertIn("percent=100.0%", progress_lines[1])
+        self.assertIn("progress_log", summary)
+        self.assertEqual(summary["progress_interval_games"], 1)
 
     def test_task_k_pipeline_exports_attributed_logs_with_shapley_labels(self) -> None:
         fake_attr = ShapleyAttribution(
@@ -164,11 +242,8 @@ class TaskKTaskLRunnerTest(unittest.TestCase):
                 "liars_game_engine.analysis.task_k_gold_runner.load_settings",
                 return_value=self._make_settings(),
             ), patch(
-                "liars_game_engine.analysis.task_k_gold_runner.generate_baseline_logs",
+                "liars_game_engine.analysis.task_k_gold_runner._generate_baseline_logs_with_progress",
                 return_value=[baseline_log],
-            ), patch(
-                "liars_game_engine.analysis.task_k_gold_runner.asyncio.run",
-                side_effect=lambda result: result,
             ), patch(
                 "liars_game_engine.analysis.task_k_gold_runner.ShapleyAnalyzer.analyze_logs",
                 return_value=([fake_attr], object()),
@@ -210,6 +285,8 @@ class TaskKTaskLRunnerTest(unittest.TestCase):
                 "logs/task_k_gold_smoke",
                 "--max-workers",
                 "4",
+                "--progress-interval-games",
+                "7",
             ],
         ):
             task_k_gold_runner.main()
@@ -219,6 +296,7 @@ class TaskKTaskLRunnerTest(unittest.TestCase):
             rollout_samples=2,
             output_dir="logs/task_k_gold_smoke",
             max_workers=4,
+            progress_interval_games=7,
         )
 
     def test_task_l_pipeline_returns_comparison_summary(self) -> None:
