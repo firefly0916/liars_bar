@@ -7,7 +7,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from liars_game_engine.config.schema import AppSettings
-from liars_game_engine.experiment.llm_drill import run_llm_drill, select_representative_decisions
+from liars_game_engine.experiment.llm_drill import (
+    run_llm_drill,
+    select_high_risk_reasoning_snippets,
+    select_representative_decisions,
+)
 
 
 class LlmDrillTest(unittest.IsolatedAsyncioTestCase):
@@ -80,6 +84,8 @@ class LlmDrillTest(unittest.IsolatedAsyncioTestCase):
             self.assertLessEqual(summary["parse_error_rate"], 1.0)
             self.assertEqual(len(summary["game_summaries"]), 2)
             self.assertLessEqual(len(summary["representative_decisions"]), 3)
+            self.assertIn("progress_log", summary)
+            self.assertIn("high_risk_reasoning_path", summary)
 
             games_dir = Path(temp_dir) / "games"
             self.assertEqual(len(list(games_dir.glob("*.jsonl"))), 2)
@@ -88,6 +94,18 @@ class LlmDrillTest(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(summary_path.exists())
             persisted = json.loads(summary_path.read_text(encoding="utf-8"))
             self.assertEqual(persisted["total_games"], 2)
+            progress_log = Path(summary["progress_log"])
+            self.assertTrue(progress_log.exists())
+            progress_text = progress_log.read_text(encoding="utf-8")
+            self.assertIn("completed_games=1/2", progress_text)
+            self.assertIn("completed_games=2/2", progress_text)
+            high_risk_reasoning_path = Path(summary["high_risk_reasoning_path"])
+            self.assertTrue(high_risk_reasoning_path.exists())
+            high_risk_reasoning = json.loads(high_risk_reasoning_path.read_text(encoding="utf-8"))
+            self.assertEqual(high_risk_reasoning, summary["high_risk_reasoning_snippets"])
+            self.assertTrue(
+                all(float(item["death_probability"]) > (1.0 / 3.0) for item in summary["high_risk_reasoning_snippets"])
+            )
 
     def test_select_representative_decisions_prefers_high_risk_and_low_honesty(self) -> None:
         decisions = [
@@ -122,6 +140,46 @@ class LlmDrillTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(selected), 2)
         self.assertEqual(selected[0]["thought"], "danger")
         self.assertEqual(selected[1]["thought"], "suspicious")
+
+    def test_select_high_risk_reasoning_snippets_filters_gt_one_third(self) -> None:
+        decisions = [
+            {
+                "turn": 1,
+                "death_probability": 0.2,
+                "thought": "safe",
+                "action": {"type": "play_claim"},
+                "raw_output": '{"Reasoning":"safe","Action":{"type":"play_claim"}}',
+            },
+            {
+                "turn": 2,
+                "death_probability": 0.34,
+                "thought": "edge",
+                "action": {"type": "challenge"},
+                "raw_output": '{"Reasoning":"edge","Action":{"type":"challenge"}}',
+            },
+            {
+                "turn": 3,
+                "death_probability": 0.5,
+                "thought": "danger",
+                "action": {"type": "challenge"},
+                "raw_output": '{"Reasoning":"danger","Action":{"type":"challenge"}}',
+            },
+            {
+                "turn": 4,
+                "death_probability": 0.8,
+                "thought": "critical",
+                "action": {"type": "challenge"},
+                "raw_output": '{"Reasoning":"critical","Action":{"type":"challenge"}}',
+            },
+        ]
+
+        selected = select_high_risk_reasoning_snippets(decisions, limit=3)
+
+        self.assertEqual(len(selected), 3)
+        self.assertTrue(all(float(item["death_probability"]) > (1.0 / 3.0) for item in selected))
+        self.assertEqual(selected[0]["thought"], "critical")
+        self.assertEqual(selected[1]["thought"], "danger")
+        self.assertEqual(selected[2]["thought"], "edge")
 
     def test_run_llm_drill_script_is_invokable_from_repo_root(self) -> None:
         completed = subprocess.run(

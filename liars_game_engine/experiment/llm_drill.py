@@ -16,6 +16,14 @@ def _build_game_id(index: int) -> str:
     return f"llm-drill-{index:02d}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
 
+def _append_progress(progress_log: Path, **fields: object) -> None:
+    progress_log.parent.mkdir(parents=True, exist_ok=True)
+    line = " ".join(f"{key}={value}" for key, value in fields.items())
+    with progress_log.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+    print(line, flush=True)
+
+
 def _estimate_honesty_ratio(observation: dict[str, object]) -> float:
     private_hand = observation.get("private_hand", [])
     table_type = str(observation.get("table_type", ""))
@@ -68,6 +76,24 @@ def select_representative_decisions(decisions: list[dict[str, object]], limit: i
     return ranked[:limit]
 
 
+def select_high_risk_reasoning_snippets(
+    decisions: list[dict[str, object]],
+    limit: int = 3,
+    risk_threshold: float = 1.0 / 3.0,
+) -> list[dict[str, object]]:
+    filtered = [
+        item for item in decisions if float(item.get("death_probability", 0.0) or 0.0) > float(risk_threshold)
+    ]
+    ranked = sorted(
+        filtered,
+        key=lambda item: (
+            -float(item.get("death_probability", 0.0) or 0.0),
+            int(item.get("turn", 0) or 0),
+        ),
+    )
+    return ranked[:limit]
+
+
 async def run_llm_drill(
     settings: AppSettings,
     games: int = 5,
@@ -76,6 +102,7 @@ async def run_llm_drill(
     log_dir_path = Path(log_dir)
     games_dir = log_dir_path / "games"
     games_dir.mkdir(parents=True, exist_ok=True)
+    progress_log = log_dir_path / "progress.log"
 
     llm_player = next(player for player in settings.players if player.agent_type == "llm")
     game_summaries: list[dict[str, object]] = []
@@ -94,10 +121,24 @@ async def run_llm_drill(
         )
         summary = await orchestrator.run_game_loop()
         game_summaries.append(summary)
-        llm_turns.extend(_extract_llm_turns(logger.log_file, llm_player.player_id))
+        extracted_turns = _extract_llm_turns(logger.log_file, llm_player.player_id)
+        llm_turns.extend(extracted_turns)
+        _append_progress(
+            progress_log,
+            completed_games=f"{game_index}/{games}",
+            game_id=logger.game_id,
+            llm_turns=len(llm_turns),
+            game_llm_turns=len(extracted_turns),
+        )
 
     parse_error_count = sum(1 for turn in llm_turns if turn.get("parse_error"))
     llm_turn_count = len(llm_turns)
+    high_risk_reasoning_snippets = select_high_risk_reasoning_snippets(llm_turns, limit=3)
+    high_risk_reasoning_path = log_dir_path / "high_risk_reasoning.json"
+    high_risk_reasoning_path.write_text(
+        json.dumps(high_risk_reasoning_snippets, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
     summary = {
         "total_games": games,
         "llm_player_id": llm_player.player_id,
@@ -106,8 +147,18 @@ async def run_llm_drill(
         "parse_error_rate": (parse_error_count / llm_turn_count) if llm_turn_count else 0.0,
         "game_summaries": game_summaries,
         "representative_decisions": select_representative_decisions(llm_turns, limit=3),
+        "high_risk_reasoning_snippets": high_risk_reasoning_snippets,
+        "high_risk_reasoning_path": str(high_risk_reasoning_path),
+        "progress_log": str(progress_log),
     }
 
     summary_path = log_dir_path / "summary.json"
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+    _append_progress(
+        progress_log,
+        completed_games=f"{games}/{games}",
+        total_llm_turns=llm_turn_count,
+        parse_error_rate=summary["parse_error_rate"],
+        high_risk_snippet_count=len(high_risk_reasoning_snippets),
+    )
     return summary
