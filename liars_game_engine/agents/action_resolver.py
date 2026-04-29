@@ -36,6 +36,13 @@ def _find_play_claim_legal_window(observation: dict[str, object]) -> tuple[int, 
     return (1, 1)
 
 
+def _has_legal_action_type(observation: dict[str, object], action_type: str) -> bool:
+    legal_actions = observation.get("legal_actions", [])
+    if not isinstance(legal_actions, list):
+        return False
+    return any(isinstance(item, dict) and str(item.get("type", "")) == action_type for item in legal_actions)
+
+
 def _normalize_count(value: object, default: int) -> int:
     try:
         return max(0, int(value))
@@ -63,6 +70,42 @@ def _build_cards_from_counts(
     return selected_truthful + selected_bluff
 
 
+def _redirect_illegal_pass(observation: dict[str, object]) -> ResolvedAction:
+    private_hand_raw = observation.get("private_hand", [])
+    private_hand = [str(card) for card in private_hand_raw] if isinstance(private_hand_raw, list) else []
+    table_type = str(observation.get("table_type", "A"))
+
+    if _has_legal_action_type(observation, "play_claim") and private_hand:
+        min_cards, max_cards = _find_play_claim_legal_window(observation)
+        play_count = max(1, min(min_cards, max_cards, len(private_hand)))
+        truthful_pool = _truthful_cards(private_hand, table_type)
+        truthful_count = min(len(truthful_pool), play_count)
+        resolved_cards = _build_cards_from_counts(
+            private_hand=private_hand,
+            table_type=table_type,
+            play_count=play_count,
+            true_card_count=truthful_count,
+        )
+        return ResolvedAction(
+            action=ActionModel(type="play_claim", claim_rank=table_type, cards=resolved_cards),
+            resolution_reason=(
+                f"illegal_pass_redirection: redirected_to=play_claim resolved_play={len(resolved_cards)} "
+                f"resolved_true={truthful_count}"
+            ),
+        )
+
+    if _has_legal_action_type(observation, "challenge"):
+        return ResolvedAction(
+            action=ActionModel(type="challenge"),
+            resolution_reason="illegal_pass_redirection: redirected_to=challenge",
+        )
+
+    return ResolvedAction(
+        action=ActionModel(type="pass"),
+        resolution_reason="illegal_pass_redirection: no_legal_alternative_detected",
+    )
+
+
 def resolve_action_from_intent(
     observation: dict[str, object],
     action_type: str,
@@ -72,7 +115,11 @@ def resolve_action_from_intent(
 ) -> ResolvedAction:
     """作用: 将 LLM 意图协议稳定降级为环境可执行动作。"""
     normalized_action_type = str(action_type or "").strip().lower()
-    if normalized_action_type in {"challenge", "pass"}:
+    if normalized_action_type == "pass":
+        if _has_legal_action_type(observation, "pass"):
+            return ResolvedAction(action=ActionModel(type="pass"))
+        return _redirect_illegal_pass(observation)
+    if normalized_action_type == "challenge":
         return ResolvedAction(action=ActionModel(type=normalized_action_type))
 
     private_hand_raw = observation.get("private_hand", [])

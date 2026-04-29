@@ -21,7 +21,7 @@ players:
     agent_type: llm
     model: Qwen/Qwen2.5-0.5B-Instruct
     prompt_profile: baseline
-    temperature: 0.0
+    temperature: 0.8
   - player_id: p2
     name: Mock-2
     agent_type: mock

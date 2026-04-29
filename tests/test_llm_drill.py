@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from liars_game_engine.config.schema import AppSettings
 from liars_game_engine.experiment.llm_drill import (
+    _build_game_settings,
     run_llm_drill,
     select_high_risk_reasoning_snippets,
     select_representative_decisions,
@@ -196,6 +197,17 @@ class LlmDrillTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("Run a lightweight LLM drill", completed.stdout)
+
+    def test_build_game_settings_increments_random_seed_without_mutating_source(self) -> None:
+        settings = self._make_settings()
+
+        first = _build_game_settings(settings, game_index=1)
+        second = _build_game_settings(settings, game_index=2)
+
+        self.assertEqual(first.runtime.random_seed, 11)
+        self.assertEqual(second.runtime.random_seed, 12)
+        self.assertEqual(settings.runtime.random_seed, 11)
+        self.assertIsNot(first, settings)
 
 
 if __name__ == "__main__":

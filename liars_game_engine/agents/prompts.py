@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 import yaml
 
@@ -12,14 +13,14 @@ DEFAULT_PROFILE = {
     "system": "You are a strategic Liar's Bar player.",
     "instruction": (
         "Return JSON only with keys Reasoning and Action. "
-        "Action.type must be one of play_claim, challenge, pass. "
+        "Action.type must be one legal action type from the current Status Report. "
         "For play_claim, output play_count and true_card_count only. "
         "Do not output claim_rank or specific card names."
     ),
     "output_schema": {
         "Reasoning": "string",
         "Action": {
-            "type": "play_claim|challenge|pass",
+            "type": "legal_action_type",
             "play_count": "integer|null",
             "true_card_count": "integer|null",
         },
@@ -141,6 +142,37 @@ def _describe_legal_actions(observation: dict[str, object], table_type: str, tru
     return descriptions
 
 
+def _legal_action_types(observation: dict[str, object]) -> list[str]:
+    legal_actions = observation.get("legal_actions", [])
+    if not isinstance(legal_actions, list):
+        return ["play_claim", "challenge"]
+
+    ordered_types: list[str] = []
+    for candidate in ("play_claim", "challenge", "pass"):
+        if any(isinstance(item, dict) and str(item.get("type", "")) == candidate for item in legal_actions):
+            ordered_types.append(candidate)
+    return ordered_types or ["play_claim", "challenge"]
+
+
+def _sanitize_instruction(instruction: str, allowed_action_types: list[str]) -> str:
+    action_csv = ", ".join(allowed_action_types)
+    action_union = "|".join(allowed_action_types)
+    sanitized = instruction
+    sanitized = sanitized.replace("play_claim, challenge, pass", action_csv)
+    sanitized = sanitized.replace("play_claim|challenge|pass", action_union)
+    sanitized = re.sub(
+        r"Action\.type must be one of [^.]+\.",
+        f"Action.type must be one of {action_csv}.",
+        sanitized,
+    )
+    sanitized = re.sub(
+        r"Action\.type must be one legal action type from the current Status Report\.",
+        f"Action.type must be one of {action_csv}.",
+        sanitized,
+    )
+    return sanitized
+
+
 def format_observation_for_llm(observation: dict[str, object]) -> str:
     """作用: 将 8D 状态特征翻译为“三段式”自然语言 briefing。"""
     player_id = str(observation.get("player_id", ""))
@@ -181,6 +213,7 @@ def format_observation_for_llm(observation: dict[str, object]) -> str:
             f"declared_count={pending_claim.get('declared_count', 0)}"
         )
     legal_action_lines = _describe_legal_actions(observation, table_type=table_type, truthful_cards_in_hand=truthful_cards_in_hand)
+    legal_action_types = _legal_action_types(observation)
     qualitative_context = _build_qualitative_context(
         hand_truth_ratio=hand_truth_ratio,
         action_consistency_score=action_consistency_score,
@@ -213,7 +246,7 @@ def format_observation_for_llm(observation: dict[str, object]) -> str:
         "{\n"
         '  "Reasoning": "string",\n'
         '  "Action": {\n'
-        '    "type": "play_claim|challenge|pass",\n'
+        f'    "type": "{"|".join(legal_action_types)}",\n'
         '    "play_count": "integer|null",\n'
         '    "true_card_count": "integer|null"\n'
         "  }\n"
@@ -231,6 +264,7 @@ def build_openai_messages(profile: dict[str, object], observation: dict[str, obj
     返回:
     - list[dict[str, str]]: system/user 双消息结构。
     """
+    allowed_action_types = _legal_action_types(observation)
     return [
         {
             "role": "system",
@@ -239,7 +273,7 @@ def build_openai_messages(profile: dict[str, object], observation: dict[str, obj
         {
             "role": "user",
             "content": (
-                f"{profile['instruction']}\n\n"
+                f"{_sanitize_instruction(str(profile['instruction']), allowed_action_types)}\n\n"
                 f"{format_observation_for_llm(observation)}"
             ),
         },

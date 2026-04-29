@@ -143,6 +143,7 @@ players: []
         self.assertEqual(len(settings.players), 4)
         self.assertEqual(settings.players[0].agent_type, "llm")
         self.assertEqual(settings.players[0].model, "Qwen/Qwen2.5-0.5B-Instruct")
+        self.assertEqual(settings.players[0].temperature, 0.8)
         self.assertEqual(sum(1 for player in settings.players if player.agent_type == "mock"), 3)
 
 

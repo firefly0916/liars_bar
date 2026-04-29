@@ -4,6 +4,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from liars_game_engine.agents.action_resolver import resolve_action_from_intent
 from liars_game_engine.agents.factory import build_agents
 from liars_game_engine.agents.prompts import build_openai_messages, load_prompt_profile
 from liars_game_engine.config.schema import AppSettings
@@ -243,6 +244,52 @@ class LlmAgentTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("phi", user_prompt.lower())
         self.assertNotIn("selected_skill", user_prompt.lower())
         self.assertNotIn("skill_parameters", user_prompt.lower())
+
+    def test_build_openai_messages_omits_pass_when_pass_is_not_legal(self) -> None:
+        profile = load_prompt_profile("baseline")
+        observation = {
+            "player_id": "p1",
+            "phase": "response_window",
+            "current_player_id": "p1",
+            "table_type": "A",
+            "private_hand": ["A", "Q", "Q", "K"],
+            "pending_claim": {"actor_id": "p2", "claim_rank": "A", "declared_count": 2},
+            "must_call_liar": False,
+            "alive_players": ["p1", "p2", "p3"],
+            "player_states": {"p1": {"death_probability": 1.0 / 3.0}},
+            "legal_actions": [
+                {"type": "challenge"},
+                {"type": "play_claim", "claim_rank": "A", "min_cards": 1, "max_cards": 2},
+            ],
+        }
+
+        messages = build_openai_messages(profile, observation)
+        user_prompt = messages[1]["content"].lower()
+
+        self.assertNotIn("pass", user_prompt)
+        self.assertIn("play_claim|challenge", user_prompt)
+
+    def test_resolver_redirects_illegal_pass_to_minimum_risk_legal_play(self) -> None:
+        observation = {
+            "player_id": "p1",
+            "phase": "response_window",
+            "current_player_id": "p1",
+            "table_type": "A",
+            "private_hand": ["A", "Q", "K"],
+            "pending_claim": {"actor_id": "p2", "claim_rank": "A", "declared_count": 2},
+            "must_call_liar": False,
+            "legal_actions": [
+                {"type": "challenge"},
+                {"type": "play_claim", "claim_rank": "A", "min_cards": 1, "max_cards": 2},
+            ],
+        }
+
+        decision = resolve_action_from_intent(observation=observation, action_type="pass")
+
+        self.assertEqual(decision.action.type, "play_claim")
+        self.assertEqual(decision.action.claim_rank, "A")
+        self.assertEqual(decision.action.cards, ["A"])
+        self.assertIn("illegal_pass_redirection", str(decision.resolution_reason))
 
     async def test_llm_agent_consistently_downgrades_true_card_count_when_hand_cannot_support_intent(self) -> None:
         settings = AppSettings.from_dict(

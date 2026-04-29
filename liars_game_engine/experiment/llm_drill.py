@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 from datetime import datetime
 from pathlib import Path
@@ -111,6 +112,12 @@ def select_high_risk_reasoning_snippets(
     return ranked[:limit]
 
 
+def _build_game_settings(settings: AppSettings, game_index: int) -> AppSettings:
+    game_settings = copy.deepcopy(settings)
+    game_settings.runtime.random_seed = int(settings.runtime.random_seed) + max(0, int(game_index) - 1)
+    return game_settings
+
+
 async def run_llm_drill(
     settings: AppSettings,
     games: int = 5,
@@ -139,8 +146,9 @@ async def run_llm_drill(
     )
 
     for game_index in range(1, games + 1):
-        env = GameEnvironment(settings)
-        agents = build_agents(settings)
+        game_settings = _build_game_settings(settings, game_index)
+        env = GameEnvironment(game_settings)
+        agents = build_agents(game_settings)
         logger = ExperimentLogger(base_dir=games_dir, game_id=_build_game_id(game_index))
 
         def _handle_turn_progress(payload: dict[str, object]) -> None:
@@ -158,17 +166,19 @@ async def run_llm_drill(
                 progress_bar=_render_progress_bar(percent),
                 eta_seconds=f"{_estimate_eta_seconds(start_time, completed_turns, total_turn_budget):.6f}",
                 game_id=payload.get("game_id"),
+                game_seed=game_settings.runtime.random_seed,
             )
 
         orchestrator = GameOrchestrator(
             env=env,
             agents=agents,
             logger=logger,
-            fallback_action=settings.runtime.fallback_action,
-            max_turns=settings.runtime.max_turns,
+            fallback_action=game_settings.runtime.fallback_action,
+            max_turns=game_settings.runtime.max_turns,
             progress_callback=_handle_turn_progress,
         )
         summary = await orchestrator.run_game_loop()
+        summary["random_seed"] = game_settings.runtime.random_seed
         game_summaries.append(summary)
         extracted_turns = _extract_llm_turns(logger.log_file, llm_player.player_id)
         llm_turns.extend(extracted_turns)
