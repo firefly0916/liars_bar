@@ -62,6 +62,37 @@ class LocalBackendTest(unittest.TestCase):
         model_call = next(payload for kind, payload in calls if kind == "model")
         self.assertEqual(model_call["device_map"], "auto")
 
+    def test_load_model_bundle_can_disable_local_files_only_via_env(self) -> None:
+        calls: list[tuple[str, dict[str, object]]] = []
+
+        class FakeTokenizer:
+            @staticmethod
+            def from_pretrained(model_name: str, **kwargs):
+                calls.append(("tokenizer", {"model_name": model_name, **kwargs}))
+                return object()
+
+        class FakeModel:
+            @staticmethod
+            def from_pretrained(model_name: str, **kwargs):
+                calls.append(("model", {"model_name": model_name, **kwargs}))
+                return object()
+
+        fake_transformers = types.SimpleNamespace(
+            AutoTokenizer=FakeTokenizer,
+            AutoModelForCausalLM=FakeModel,
+        )
+
+        local_backend._load_model_bundle.cache_clear()
+        with patch.dict(sys.modules, {"transformers": fake_transformers}), patch.dict(
+            "os.environ",
+            {"LOCAL_LLM_LOCAL_FILES_ONLY": "0"},
+            clear=False,
+        ):
+            local_backend._load_model_bundle("Qwen/Qwen2.5-0.5B-Instruct")
+
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(all(call[1]["local_files_only"] is False for call in calls))
+
     def test_generate_local_chat_completion_sync_uses_eval_and_kv_cache(self) -> None:
         generate_calls: list[dict[str, object]] = []
 

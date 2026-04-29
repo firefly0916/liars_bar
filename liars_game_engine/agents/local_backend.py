@@ -17,6 +17,11 @@ class LocalModelBundle:
     model: Any
 
 
+def _resolve_local_files_only() -> bool:
+    raw = str(os.environ.get("LOCAL_LLM_LOCAL_FILES_ONLY", "1")).strip().lower()
+    return raw not in {"0", "false", "no"}
+
+
 @lru_cache(maxsize=4)
 def _load_model_bundle(
     model_name: str,
@@ -33,10 +38,15 @@ def _load_model_bundle(
     except Exception:  # pragma: no cover - torch is a required runtime dependency in this repo.
         torch = None
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, local_files_only=True)
+    local_files_only = _resolve_local_files_only()
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name,
+        trust_remote_code=True,
+        local_files_only=local_files_only,
+    )
     model_kwargs: dict[str, Any] = {
         "trust_remote_code": True,
-        "local_files_only": True,
+        "local_files_only": local_files_only,
     }
     if device_map:
         model_kwargs["device_map"] = device_map

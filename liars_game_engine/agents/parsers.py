@@ -28,6 +28,15 @@ class PlannerParseResult:
     error: ParseError | None = None
 
 
+@dataclass
+class ActionIntent:
+    type: str
+    play_count: int | None = None
+    true_card_count: int | None = None
+    claim_rank: str | None = None
+    cards: list[str] = field(default_factory=list)
+
+
 def _extract_candidates(raw_output: str) -> list[str]:
     """作用: 从原始文本中提取可能的 JSON 候选片段。
 
@@ -140,14 +149,73 @@ def _validate_action(action_payload: Any, raw_output: str) -> ParseResult:
 
     claim_rank = action_payload.get("claim_rank")
     cards = action_payload.get("cards")
+    play_count = action_payload.get("play_count")
+    true_card_count = action_payload.get("true_card_count")
 
-    if cards is None:
-        cards = []
-    if not isinstance(cards, list):
-        cards = [str(cards)]
+    if action_type in {"challenge", "pass"}:
+        return ParseResult(
+            ok=True,
+            action=ActionModel(type=action_type, claim_rank=claim_rank, cards=[]),
+            action_intent=ActionIntent(type=action_type),
+        )
 
-    action = ActionModel(type=action_type, claim_rank=claim_rank, cards=[str(card) for card in cards])
-    return ParseResult(ok=True, action=action)
+    if isinstance(cards, list):
+        normalized_cards = [str(card) for card in cards]
+        inferred_true_count = action_payload.get("true_card_count")
+        try:
+            normalized_true_count = int(inferred_true_count) if inferred_true_count is not None else None
+        except (TypeError, ValueError):
+            normalized_true_count = None
+        return ParseResult(
+            ok=True,
+            action=ActionModel(type=action_type, claim_rank=claim_rank, cards=normalized_cards),
+            action_intent=ActionIntent(
+                type=action_type,
+                play_count=len(normalized_cards),
+                true_card_count=normalized_true_count,
+                claim_rank=str(claim_rank) if claim_rank is not None else None,
+                cards=normalized_cards,
+            ),
+        )
+
+    if play_count is not None:
+        try:
+            normalized_play_count = int(play_count)
+        except (TypeError, ValueError):
+            normalized_play_count = -1
+        try:
+            normalized_true_count = int(true_card_count) if true_card_count is not None else 0
+        except (TypeError, ValueError):
+            normalized_true_count = 0
+        if normalized_play_count < 1:
+            return ParseResult(
+                ok=False,
+                error=ParseError(
+                    code="E_ACTION_SCHEMA_MISSING",
+                    message="play_count must be a positive integer for play_claim",
+                    raw_output=raw_output,
+                ),
+            )
+        return ParseResult(
+            ok=True,
+            action=None,
+            action_intent=ActionIntent(
+                type=action_type,
+                play_count=normalized_play_count,
+                true_card_count=max(0, normalized_true_count),
+                claim_rank=str(claim_rank) if claim_rank is not None else None,
+                cards=[],
+            ),
+        )
+
+    return ParseResult(
+        ok=False,
+        error=ParseError(
+            code="E_ACTION_SCHEMA_MISSING",
+            message="play_claim requires either cards list or play_count intent fields",
+            raw_output=raw_output,
+        ),
+    )
 
 
 def parse_agent_output(raw_output: str) -> ParseResult:

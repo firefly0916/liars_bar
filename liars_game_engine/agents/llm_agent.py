@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import asdict
+
+from liars_game_engine.agents.action_resolver import resolve_action_from_intent
 from liars_game_engine.agents.base_agent import AgentDecision, BaseAgent
 from liars_game_engine.agents.local_backend import LocalBackendUnavailableError, generate_local_chat_completion
 from liars_game_engine.agents.parsers import parse_agent_output
@@ -55,6 +58,21 @@ class LlmAgent(BaseAgent):
             return raw_output
 
         parsed = parse_agent_output(raw_output)
+        if parsed.ok and parsed.action_intent is not None:
+            resolved = resolve_action_from_intent(
+                observation=observation,
+                action_type=parsed.action_intent.type,
+                play_count=parsed.action_intent.play_count,
+                true_card_count=parsed.action_intent.true_card_count,
+                cards=list(parsed.action_intent.cards),
+            )
+            return AgentDecision(
+                thought=parsed.thought,
+                action=resolved.action,
+                raw_output=raw_output,
+                action_intent=asdict(parsed.action_intent),
+                resolution_reason=resolved.resolution_reason,
+            )
         if parsed.ok and parsed.action is not None:
             return AgentDecision(thought=parsed.thought, action=parsed.action, raw_output=raw_output)
 

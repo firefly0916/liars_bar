@@ -40,6 +40,7 @@ class ParseResult:
     action: ActionModel | None = None
     thought: str = ""
     error: ParseError | None = None
+    action_intent: object | None = None
 
 
 @dataclass

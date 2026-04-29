@@ -28,7 +28,7 @@ class FakeCompletions:
             choices=[
                 SimpleNamespace(
                     message=SimpleNamespace(
-                        content='{"Reasoning":"继续吹牛还能保留主动权。","Action":{"type":"play_claim","claim_rank":"A","cards":["K"]}}'
+                        content='{"Reasoning":"继续吹牛还能保留主动权。","Action":{"type":"play_claim","play_count":1,"true_card_count":0}}'
                     )
                 )
             ]
@@ -87,6 +87,9 @@ class LlmAgentTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(decision.action.type, "play_claim")
         self.assertEqual(decision.action.claim_rank, "A")
         self.assertEqual(decision.action.cards, ["K"])
+        self.assertEqual(decision.action_intent["play_count"], 1)
+        self.assertEqual(decision.action_intent["true_card_count"], 0)
+        self.assertIsNone(decision.resolution_reason)
 
         self.assertEqual(len(FakeAsyncOpenAI.instances), 1)
         client = FakeAsyncOpenAI.instances[0]
@@ -234,9 +237,75 @@ class LlmAgentTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("轮盘死亡概率", user_prompt)
         self.assertIn("Reasoning", user_prompt)
         self.assertIn("Action", user_prompt)
+        self.assertIn("play_count", user_prompt)
+        self.assertIn("true_card_count", user_prompt)
+        self.assertNotIn('"claim_rank":', user_prompt)
         self.assertNotIn("phi", user_prompt.lower())
         self.assertNotIn("selected_skill", user_prompt.lower())
         self.assertNotIn("skill_parameters", user_prompt.lower())
+
+    async def test_llm_agent_consistently_downgrades_true_card_count_when_hand_cannot_support_intent(self) -> None:
+        settings = AppSettings.from_dict(
+            {
+                "api": {
+                    "api_key": "test-key",
+                    "base_url": "http://127.0.0.1:9999/v1",
+                },
+                "players": [
+                    {
+                        "player_id": "p1",
+                        "name": "Alice",
+                        "agent_type": "llm",
+                        "model": "unit-test-model",
+                        "prompt_profile": "baseline",
+                        "temperature": 0.1,
+                    }
+                ],
+            }
+        )
+        observation = {
+            "player_id": "p1",
+            "phase": "turn_start",
+            "current_player_id": "p1",
+            "table_type": "A",
+            "private_hand": ["A", "Q", "K"],
+            "pending_claim": None,
+            "must_call_liar": False,
+            "legal_actions": [{"type": "play_claim", "claim_rank": "A", "min_cards": 1, "max_cards": 3}],
+        }
+
+        class _IntentAsyncOpenAI:
+            def __init__(self, **kwargs) -> None:
+                self.chat = SimpleNamespace(
+                    completions=SimpleNamespace(
+                        create=self._create,
+                    )
+                )
+
+            async def _create(self, **kwargs):
+                return SimpleNamespace(
+                    choices=[
+                        SimpleNamespace(
+                            message=SimpleNamespace(
+                                content='{"Reasoning":"想打两张真牌压迫。","Action":{"type":"play_claim","play_count":2,"true_card_count":2}}'
+                            )
+                        )
+                    ]
+                )
+
+        agent = build_agents(settings)["p1"]
+        llm_agent_module = importlib.import_module("liars_game_engine.agents.llm_agent")
+        with patch.object(llm_agent_module, "AsyncOpenAI", _IntentAsyncOpenAI):
+            decision = await agent.act(observation)
+
+        self.assertEqual(decision.action.type, "play_claim")
+        self.assertEqual(decision.action.claim_rank, "A")
+        self.assertEqual(decision.action.cards, ["A", "Q"])
+        self.assertEqual(decision.action_intent["play_count"], 2)
+        self.assertEqual(decision.action_intent["true_card_count"], 2)
+        self.assertIn("downgraded", str(decision.resolution_reason))
+        self.assertIn("requested_true=2", str(decision.resolution_reason))
+        self.assertIn("resolved_true=1", str(decision.resolution_reason))
 
     @unittest.skipUnless(importlib.util.find_spec("transformers"), "transformers not installed")
     def test_build_openai_messages_stays_under_400_tokens_for_task_m(self) -> None:

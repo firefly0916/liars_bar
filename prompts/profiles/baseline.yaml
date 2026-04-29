@@ -4,9 +4,11 @@ instruction: |
   Return JSON only with keys Reasoning and Action.
   Action.type must be one of play_claim, challenge, pass.
   Use only legal actions and do not invent hidden information.
+  For play_claim, output play_count and true_card_count only.
+  Do not output claim_rank or specific card names.
 output_schema:
   Reasoning: string
   Action:
     type: play_claim|challenge|pass
-    claim_rank: A|K|Q|null
-    cards: [string]
+    play_count: integer|null
+    true_card_count: integer|null

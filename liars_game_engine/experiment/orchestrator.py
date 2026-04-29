@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from uuid import uuid4
 
 from liars_game_engine.agents.base_agent import BaseAgent
@@ -18,6 +19,7 @@ class GameOrchestrator:
         logger: ExperimentLogger,
         fallback_action: str,
         max_turns: int,
+        progress_callback: Callable[[dict[str, object]], None] | None = None,
     ) -> None:
         """作用: 初始化编排器与运行参数。
 
@@ -36,6 +38,7 @@ class GameOrchestrator:
         self.logger = logger
         self.fallback_action = fallback_action
         self.max_turns = max_turns
+        self.progress_callback = progress_callback
         self.turn_checkpoints: dict[str, dict[str, object]] = {}
 
     @staticmethod
@@ -119,6 +122,8 @@ class GameOrchestrator:
                         "cards": decision.action.cards,
                     },
                     "raw_output": decision.raw_output,
+                    "llm_intent": decision.action_intent,
+                    "resolution_reason": decision.resolution_reason,
                     "skill_name": decision.selected_skill,
                     "skill_category": (
                         "Probe"
@@ -152,6 +157,17 @@ class GameOrchestrator:
             )
 
             turns_played += 1
+            if self.progress_callback is not None:
+                self.progress_callback(
+                    {
+                        "game_id": self.logger.game_id,
+                        "turns_played": turns_played,
+                        "max_turns": self.max_turns,
+                        "player_id": player_id,
+                        "fallback_used": fallback_used,
+                        "log_file": str(self.logger.log_file),
+                    }
+                )
 
         alive_players = [
             player_id

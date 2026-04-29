@@ -1,10 +1,13 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import Mock
 
+from liars_game_engine.agents.base_agent import AgentDecision, BaseAgent
 from liars_game_engine.agents.factory import build_agents
 from liars_game_engine.config.schema import AppSettings
 from liars_game_engine.engine.environment import GameEnvironment
+from liars_game_engine.engine.game_state import ActionModel
 from liars_game_engine.experiment.logger import ExperimentLogger
 from liars_game_engine.experiment.orchestrator import GameOrchestrator
 
@@ -109,6 +112,67 @@ class OrchestratorLoggingTest(unittest.IsolatedAsyncioTestCase):
                     "death_probability",
                 },
             )
+
+    async def test_orchestrator_records_llm_intent_and_resolution_reason(self) -> None:
+        settings = self._make_settings()
+
+        class _StubAgent(BaseAgent):
+            async def act(self, observation: dict[str, object]) -> AgentDecision:
+                return AgentDecision(
+                    thought="resolver adjusted truth count",
+                    action=ActionModel(type="play_claim", claim_rank=str(observation.get("table_type", "A")), cards=["A"]),
+                    raw_output='{"Reasoning":"resolver adjusted truth count","Action":{"type":"play_claim","play_count":2,"true_card_count":2}}',
+                    decision_bias=None,
+                    action_intent={"type": "play_claim", "play_count": 2, "true_card_count": 2},
+                    resolution_reason="intent_true_count_downgraded: requested_true=2 resolved_true=1",
+                )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            settings.logging.run_log_dir = temp_dir
+            env = GameEnvironment(settings)
+            logger = ExperimentLogger(base_dir=temp_dir, game_id="test-game")
+            orchestrator = GameOrchestrator(
+                env=env,
+                agents={"p1": _StubAgent("p1", "stub", "baseline", 0.0), "p2": _StubAgent("p2", "stub", "baseline", 0.0)},
+                logger=logger,
+                fallback_action=settings.runtime.fallback_action,
+                max_turns=1,
+            )
+
+            await orchestrator.run_game_loop()
+
+            first_record = json.loads(logger.log_file.read_text(encoding="utf-8").splitlines()[0])
+            self.assertEqual(first_record["llm_intent"]["play_count"], 2)
+            self.assertEqual(first_record["llm_intent"]["true_card_count"], 2)
+            self.assertIn("resolved_true=1", first_record["resolution_reason"])
+
+    async def test_orchestrator_emits_progress_callback_for_each_turn(self) -> None:
+        settings = self._make_settings()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            settings.logging.run_log_dir = temp_dir
+            env = GameEnvironment(settings)
+            agents = build_agents(settings)
+            logger = ExperimentLogger(base_dir=temp_dir, game_id="test-game")
+            progress_callback = Mock()
+            orchestrator = GameOrchestrator(
+                env=env,
+                agents=agents,
+                logger=logger,
+                fallback_action=settings.runtime.fallback_action,
+                max_turns=settings.runtime.max_turns,
+                progress_callback=progress_callback,
+            )
+
+            summary = await orchestrator.run_game_loop()
+
+            self.assertEqual(progress_callback.call_count, int(summary["turns_played"]))
+            first_payload = progress_callback.call_args_list[0].args[0]
+            self.assertEqual(first_payload["game_id"], "test-game")
+            self.assertEqual(first_payload["turns_played"], 1)
+            self.assertEqual(first_payload["max_turns"], settings.runtime.max_turns)
+            self.assertIn("player_id", first_payload)
+            self.assertIn("log_file", first_payload)
 
 
 if __name__ == "__main__":

@@ -12,14 +12,16 @@ DEFAULT_PROFILE = {
     "system": "You are a strategic Liar's Bar player.",
     "instruction": (
         "Return JSON only with keys Reasoning and Action. "
-        "Action.type must be one of play_claim, challenge, pass."
+        "Action.type must be one of play_claim, challenge, pass. "
+        "For play_claim, output play_count and true_card_count only. "
+        "Do not output claim_rank or specific card names."
     ),
     "output_schema": {
         "Reasoning": "string",
         "Action": {
             "type": "play_claim|challenge|pass",
-            "claim_rank": "string|null",
-            "cards": ["string"],
+            "play_count": "integer|null",
+            "true_card_count": "integer|null",
         },
     },
 }
@@ -132,7 +134,7 @@ def _describe_legal_actions(observation: dict[str, object], table_type: str, tru
             min_cards = int(item.get("min_cards", 1))
             max_cards = int(item.get("max_cards", 3))
             descriptions.append(
-                f"play_claim(rank={item.get('claim_rank', table_type)},cards={min_cards}-{max_cards},true={truthful_cards_in_hand})"
+                f"play_claim(rank={item.get('claim_rank', table_type)},play_count={min_cards}-{max_cards},true_card_count<= {truthful_cards_in_hand})"
             )
         elif action_type:
             descriptions.append(action_type)
@@ -199,14 +201,21 @@ def format_observation_for_llm(observation: dict[str, object]) -> str:
         f"- legal: {' | '.join(legal_action_lines)}\n\n"
         "Qualitative Context\n"
         f"{qualitative_context}\n\n"
+        "Protocol Rules\n"
+        f"- If you choose play_claim, the system will automatically set claim_rank to table={table_type}.\n"
+        "- Output play_count as the number of face-down cards to play.\n"
+        "- Output true_card_count as how many of those cards are truthful table cards or Jokers.\n"
+        "- Never output card names, and never output claim_rank yourself.\n"
+        "- Example: hand=['K','Q'], table=K, hidden bluff of two cards with one truthful card => "
+        '{"type":"play_claim","play_count":2,"true_card_count":1}\n\n'
         "Decision Request\n"
         "Choose one legal action. No hidden info. Return JSON only:\n"
         "{\n"
         '  "Reasoning": "string",\n'
         '  "Action": {\n'
         '    "type": "play_claim|challenge|pass",\n'
-        '    "claim_rank": "A|K|Q|null",\n'
-        '    "cards": ["string"]\n'
+        '    "play_count": "integer|null",\n'
+        '    "true_card_count": "integer|null"\n'
         "  }\n"
         "}"
     )
