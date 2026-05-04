@@ -1,4 +1,6 @@
 __pycache__/
 *.pyc
 .env
+.pt
+models/proxy/*.pt
 logs/runs/*.jsonl
