@@ -700,6 +700,54 @@ def _compute_reference_logits(model, input_ids, attention_mask):
     return None
 
 
+def save_training_artifacts(
+    *,
+    model,
+    tokenizer,
+    optimizer,
+    checkpoint_dir: Path | str,
+    tag: str,
+    lora_enabled: bool,
+    metadata: dict[str, object] | None = None,
+) -> dict[str, object]:
+    import torch
+
+    output_dir = Path(checkpoint_dir) / str(tag)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if not hasattr(model, "save_pretrained"):
+        raise ValueError("Training model does not support save_pretrained")
+    model.save_pretrained(str(output_dir))
+
+    if tokenizer is not None and hasattr(tokenizer, "save_pretrained"):
+        tokenizer.save_pretrained(str(output_dir))
+
+    optimizer_state_path = output_dir / "optimizer.pt"
+    if optimizer is not None and hasattr(optimizer, "state_dict"):
+        torch.save(optimizer.state_dict(), optimizer_state_path)
+        optimizer_state_path_value: str | None = str(optimizer_state_path)
+    else:
+        optimizer_state_path_value = None
+
+    metadata_path_value: str | None = None
+    if metadata is not None:
+        metadata_path = output_dir / "training_snapshot.json"
+        snapshot_payload = dict(metadata)
+        snapshot_payload["tag"] = str(tag)
+        snapshot_payload["path"] = str(output_dir)
+        snapshot_payload["lora_enabled"] = bool(lora_enabled)
+        metadata_path.write_text(json.dumps(snapshot_payload, ensure_ascii=True, indent=2), encoding="utf-8")
+        metadata_path_value = str(metadata_path)
+
+    return {
+        "tag": str(tag),
+        "path": str(output_dir),
+        "lora_enabled": bool(lora_enabled),
+        "metadata_path": metadata_path_value,
+        "optimizer_state_path": optimizer_state_path_value,
+    }
+
+
 def run_smoke_training(
     dataset_path: Path | str,
     *,
@@ -724,8 +772,14 @@ def run_smoke_training(
     anchor_ratio: float = 0.7,
     anchor_alpha: float = 1.0,
     ev_gap_threshold: float = 0.15,
+    checkpoint_dir: Path | str | None = None,
+    save_every_steps: int | None = None,
+    save_final_adapter: bool = False,
 ) -> dict[str, object]:
     import torch
+
+    if (save_every_steps is not None or save_final_adapter) and checkpoint_dir is None:
+        raise ValueError("checkpoint_dir is required when save_every_steps or save_final_adapter is enabled")
 
     records = prioritize_smoke_records(load_alignment_records(dataset_path))
     if max_records is not None:
@@ -756,7 +810,11 @@ def run_smoke_training(
     resolved_device = str(components["device"])
 
     steps = max(1, int(steps))
+    normalized_save_every_steps = None
+    if save_every_steps is not None and int(save_every_steps) > 0:
+        normalized_save_every_steps = int(save_every_steps)
     step_summaries: list[dict[str, object]] = []
+    checkpoint_events: list[dict[str, object]] = []
     for step_index in range(steps):
         record = scheduled_records[step_index % len(scheduled_records)]
         group = _build_scored_group(predictor=predictor, record=record, group_size=group_size)
@@ -837,7 +895,49 @@ def run_smoke_training(
                 **signal_flags,
             }
         )
+        if checkpoint_dir is not None and normalized_save_every_steps is not None and ((step_index + 1) % normalized_save_every_steps == 0):
+            checkpoint_events.append(
+                save_training_artifacts(
+                    model=model,
+                    tokenizer=tokenizer,
+                    optimizer=optimizer,
+                    checkpoint_dir=checkpoint_dir,
+                    tag=f"step-{step_index + 1:06d}",
+                    lora_enabled=bool(components["lora_enabled"]),
+                    metadata={
+                        "step": step_index + 1,
+                        "reason": "interval",
+                        "dataset_path": str(dataset_path),
+                        "policy_model_path": str(policy_model_path),
+                        "step_summary": step_summaries[-1],
+                    },
+                )
+            )
 
+    if checkpoint_dir is not None and save_final_adapter:
+        checkpoint_events.append(
+            save_training_artifacts(
+                model=model,
+                tokenizer=tokenizer,
+                optimizer=optimizer,
+                checkpoint_dir=checkpoint_dir,
+                tag="final",
+                lora_enabled=bool(components["lora_enabled"]),
+                metadata={
+                    "step": len(step_summaries),
+                    "reason": "final",
+                    "dataset_path": str(dataset_path),
+                    "policy_model_path": str(policy_model_path),
+                    "step_metrics": summarize_step_metrics(step_summaries),
+                },
+            )
+        )
+
+    final_adapter_path = None
+    for event in checkpoint_events:
+        if str(event.get("tag", "")) == "final":
+            final_adapter_path = str(event.get("path", ""))
+            break
     return {
         "dataset_path": str(dataset_path),
         "policy_model_path": policy_model_path,
@@ -856,6 +956,11 @@ def run_smoke_training(
         "torch_dtype": str(components["torch_dtype"]),
         "step_summaries": step_summaries,
         "step_metrics": summarize_step_metrics(step_summaries),
+        "checkpoint_dir": str(checkpoint_dir) if checkpoint_dir is not None else None,
+        "save_every_steps": normalized_save_every_steps,
+        "save_final_adapter": bool(save_final_adapter),
+        "checkpoint_events": checkpoint_events,
+        "final_adapter_path": final_adapter_path,
     }
 
 
@@ -883,6 +988,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--anchor-ratio", type=float, default=0.7)
     parser.add_argument("--anchor-alpha", type=float, default=1.0)
     parser.add_argument("--ev-gap-threshold", type=float, default=0.15)
+    parser.add_argument("--checkpoint-dir", default=None)
+    parser.add_argument("--save-every-steps", type=int, default=None)
+    parser.add_argument("--save-final-adapter", action="store_true", default=False)
     parser.add_argument("--dry-run", action="store_true", default=False)
     parser.add_argument("--output-path", default=None)
     return parser.parse_args()
@@ -922,6 +1030,9 @@ def main() -> None:
             anchor_ratio=args.anchor_ratio,
             anchor_alpha=args.anchor_alpha,
             ev_gap_threshold=args.ev_gap_threshold,
+            checkpoint_dir=args.checkpoint_dir,
+            save_every_steps=args.save_every_steps,
+            save_final_adapter=bool(args.save_final_adapter),
         )
     if args.output_path:
         Path(args.output_path).parent.mkdir(parents=True, exist_ok=True)

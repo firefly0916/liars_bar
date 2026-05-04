@@ -1,7 +1,9 @@
 import importlib.util
+import itertools
 import json
 import tempfile
 import unittest
+from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import patch
 
@@ -42,6 +44,31 @@ class TrainSaviAlignmentTest(unittest.TestCase):
             if return_tensors == "pt":
                 payload = {key: torch.tensor([value], dtype=torch.long) for key, value in payload.items() if key != "offset_mapping"}
             return payload
+
+        def save_pretrained(self, output_dir: str) -> None:
+            path = Path(output_dir)
+            path.mkdir(parents=True, exist_ok=True)
+            (path / "tokenizer.json").write_text("{}", encoding="utf-8")
+
+    class _FakeTrainModel(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.scale = torch.nn.Parameter(torch.tensor(1.0, dtype=torch.float32))
+            self.saved_paths: list[str] = []
+
+        def forward(self, input_ids=None, attention_mask=None):
+            seq_len = int(input_ids.shape[1])
+            logits = self.scale.view(1, 1, 1).expand(1, seq_len, 3)
+            return type("FakeOutput", (), {"logits": logits})()
+
+        def save_pretrained(self, output_dir: str) -> None:
+            path = Path(output_dir)
+            path.mkdir(parents=True, exist_ok=True)
+            (path / "adapter_model.bin").write_text("stub", encoding="utf-8")
+            self.saved_paths.append(str(path))
+
+        def disable_adapter(self):
+            return nullcontext()
 
     def test_compute_group_relative_advantages_centers_rewards(self) -> None:
         module = _load_train_module()
@@ -385,6 +412,158 @@ class TrainSaviAlignmentTest(unittest.TestCase):
         self.assertEqual(summary["signalless_step_count"], 1)
         self.assertAlmostEqual(summary["signal_density_rate"], 0.5, places=6)
         self.assertAlmostEqual(summary["average_hicra_mask_intensity"], 0.35, places=6)
+
+    def test_save_training_artifacts_writes_adapter_tokenizer_metadata_and_optimizer_state(self) -> None:
+        module = _load_train_module()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            checkpoint_dir = Path(temp_dir) / "checkpoints"
+            model = self._FakeTrainModel()
+            tokenizer = self._FakeQwenTokenizer()
+            optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+
+            artifact = module.save_training_artifacts(
+                model=model,
+                tokenizer=tokenizer,
+                optimizer=optimizer,
+                checkpoint_dir=checkpoint_dir,
+                tag="step-000002",
+                lora_enabled=True,
+                metadata={"step": 2, "reason": "interval"},
+            )
+
+            saved_path = checkpoint_dir / "step-000002"
+            self.assertEqual(artifact["path"], str(saved_path))
+            self.assertEqual(artifact["tag"], "step-000002")
+            self.assertTrue((saved_path / "adapter_model.bin").exists())
+            self.assertTrue((saved_path / "tokenizer.json").exists())
+            self.assertTrue((saved_path / "optimizer.pt").exists())
+            metadata = json.loads((saved_path / "training_snapshot.json").read_text(encoding="utf-8"))
+            self.assertEqual(metadata["step"], 2)
+            self.assertEqual(metadata["reason"], "interval")
+
+    def test_run_smoke_training_records_interval_and_final_checkpoint_events(self) -> None:
+        module = _load_train_module()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            checkpoint_dir = Path(temp_dir) / "checkpoints"
+            model = self._FakeTrainModel()
+            tokenizer = self._FakeQwenTokenizer()
+            optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+
+            components = {
+                "model": model,
+                "tokenizer": tokenizer,
+                "optimizer": optimizer,
+                "device": "cpu",
+                "torch_dtype": "torch.float32",
+                "lora_enabled": True,
+                "trainable_parameter_count": 1,
+                "load_in_4bit": False,
+            }
+
+            record = {
+                "game_id": "g1",
+                "turn": 1,
+                "player_id": "p1",
+                "thought": "Play carefully and stay consistent.",
+                "action": {"type": "challenge", "claim_rank": "", "cards": []},
+                "proxy_target_action": {"type": "play_claim", "claim_rank": "A", "cards": ["A"]},
+                "messages": [{"role": "user", "content": "Return JSON only."}],
+                "ev_gap": 0.2,
+                "reasoning_action_mismatch": True,
+            }
+            group = {
+                "game_id": "g1",
+                "turn": 1,
+                "ev_gap": 0.2,
+                "reasoning_action_mismatch": True,
+                "rewards": [0.1, 0.4],
+                "advantages": [-0.15, 0.15],
+                "mask_metrics": {
+                    "strategic_alignment_count": 1,
+                    "strategic_token_index_count": 1,
+                    "non_zero_mask_count": 1,
+                    "mask_hit_count": 1,
+                    "mask_hit_rate": 1.0,
+                    "average_hicra_mask_intensity": 0.2,
+                },
+                "candidates": [
+                    {"candidate_index": 0, "candidate_role": "logged_action", "advantage": -0.15},
+                    {"candidate_index": 1, "candidate_role": "proxy_target", "advantage": 0.15},
+                ],
+            }
+
+            example = {
+                "input_ids": torch.tensor([[1, 2, 3]], dtype=torch.long),
+                "attention_mask": torch.tensor([[1, 1, 1]], dtype=torch.long),
+                "label_token_mask": torch.tensor([1.0, 1.0], dtype=torch.float32),
+                "token_weight_mask": torch.tensor([0.0, -0.2], dtype=torch.float32),
+            }
+            losses = itertools.cycle([0.6, 0.3, 0.5, 0.2])
+            saved_tags: list[str] = []
+
+            def _fake_compute_candidate_loss_terms(**kwargs):
+                loss_value = next(losses)
+                loss = model.scale * 0 + torch.tensor(loss_value, dtype=torch.float32)
+                return {
+                    "loss": loss,
+                    "nll": loss_value,
+                    "weighted_nll": loss_value,
+                    "kl_value": 0.01,
+                    "hicra_weight_mean": 1.2,
+                    "active_label_count": 2,
+                }
+
+            def _fake_save_training_artifacts(**kwargs):
+                saved_tags.append(str(kwargs["tag"]))
+                return {
+                    "tag": str(kwargs["tag"]),
+                    "path": str(Path(kwargs["checkpoint_dir"]) / str(kwargs["tag"])),
+                    "step": kwargs["metadata"]["step"],
+                    "reason": kwargs["metadata"]["reason"],
+                }
+
+            with patch.object(module, "load_alignment_records", return_value=[record]), patch.object(
+                module,
+                "_build_training_components",
+                return_value=components,
+            ), patch.object(
+                module,
+                "ProxyValuePredictor",
+            ) as predictor_cls, patch.object(
+                module,
+                "_build_scored_group",
+                return_value=group,
+            ), patch.object(
+                module,
+                "prepare_candidate_training_example",
+                return_value=example,
+            ), patch.object(
+                module,
+                "compute_candidate_loss_terms",
+                side_effect=_fake_compute_candidate_loss_terms,
+            ), patch.object(
+                module,
+                "save_training_artifacts",
+                side_effect=_fake_save_training_artifacts,
+            ):
+                predictor_cls.return_value = object()
+                summary = module.run_smoke_training(
+                    dataset_path="dataset.jsonl",
+                    policy_model_path="policy",
+                    model_path="proxy.pt",
+                    group_size=2,
+                    steps=2,
+                    checkpoint_dir=checkpoint_dir,
+                    save_every_steps=1,
+                    save_final_adapter=True,
+                )
+
+            self.assertEqual(saved_tags, ["step-000001", "step-000002", "final"])
+            self.assertEqual(len(summary["checkpoint_events"]), 3)
+            self.assertEqual(summary["checkpoint_events"][-1]["tag"], "final")
+            self.assertEqual(summary["final_adapter_path"], str(checkpoint_dir / "final"))
 
 
 if __name__ == "__main__":
