@@ -110,6 +110,12 @@ class TrainSaviAlignmentTest(unittest.TestCase):
                             "death_probability": 0.2,
                             "pending_claim_declared_count": 0,
                         },
+                        "observation": {
+                            "legal_actions": [
+                                {"type": "challenge"},
+                                {"type": "play_claim", "claim_rank": "A", "min_cards": 1, "max_cards": 1},
+                            ]
+                        },
                     },
                     ensure_ascii=False,
                 )
@@ -142,9 +148,9 @@ class TrainSaviAlignmentTest(unittest.TestCase):
 
             self.assertEqual(summary["record_count"], 1)
             self.assertEqual(summary["group_size"], 3)
-            self.assertEqual(summary["groups"][0]["candidate_count"], 3)
-            self.assertEqual(len(summary["groups"][0]["rewards"]), 3)
-            self.assertEqual(len(summary["groups"][0]["advantages"]), 3)
+            self.assertEqual(summary["groups"][0]["candidate_count"], 2)
+            self.assertEqual(len(summary["groups"][0]["rewards"]), 2)
+            self.assertEqual(len(summary["groups"][0]["advantages"]), 2)
             candidates = summary["groups"][0]["candidates"]
             self.assertEqual(candidates[0]["action"]["type"], "challenge")
             self.assertEqual(candidates[1]["action"]["type"], "play_claim")
@@ -159,6 +165,31 @@ class TrainSaviAlignmentTest(unittest.TestCase):
             )
             self.assertAlmostEqual(sum(summary["groups"][0]["advantages"]), 0.0, places=6)
             self.assertEqual(summary["smoke_metrics"]["high_ev_gap_mismatch_group_count"], 1)
+
+    def test_build_group_candidates_deduplicates_proxy_target_repeats_and_keeps_challenge_path(self) -> None:
+        module = _load_train_module()
+
+        candidates = module._build_group_candidates(
+            {
+                "game_id": "g2",
+                "turn": 9,
+                "player_id": "p1",
+                "thought": "Challenge is dangerous but available.",
+                "action": {"type": "play_claim", "claim_rank": "Q", "cards": ["Q"]},
+                "proxy_target_action": {"type": "play_claim", "claim_rank": "Q", "cards": ["Q"]},
+                "observation": {
+                    "legal_actions": [
+                        {"type": "challenge"},
+                        {"type": "play_claim", "claim_rank": "Q", "min_cards": 1, "max_cards": 1},
+                    ]
+                },
+            },
+            group_size=8,
+        )
+
+        self.assertEqual(len(candidates), 2)
+        self.assertEqual([candidate["candidate_role"] for candidate in candidates], ["logged_action", "legal_challenge"])
+        self.assertEqual(candidates[1]["action"]["type"], "challenge")
 
     def test_compute_mask_hit_metrics_reports_non_zero_mask_coverage(self) -> None:
         module = _load_train_module()

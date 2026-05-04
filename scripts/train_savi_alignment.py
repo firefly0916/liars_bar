@@ -422,6 +422,20 @@ def _actions_equal(left: dict[str, object], right: dict[str, object]) -> bool:
     return _normalize_action(left) == _normalize_action(right)
 
 
+def _extract_explicit_challenge_action(record: dict[str, object]) -> dict[str, object] | None:
+    observation = record.get("observation", {})
+    if not isinstance(observation, dict):
+        return None
+    legal_actions = observation.get("legal_actions", [])
+    if not isinstance(legal_actions, list):
+        return None
+    for legal_action in legal_actions:
+        normalized = _normalize_action(legal_action if isinstance(legal_action, dict) else {})
+        if normalized["type"] == "challenge":
+            return normalized
+    return None
+
+
 def _coerce_alignment_record(record: dict[str, object]) -> dict[str, object]:
     base = build_hicra_sample(record)
     merged = {**base, **dict(record)}
@@ -441,20 +455,18 @@ def _build_group_candidates(record: dict[str, object], group_size: int) -> list[
     base_candidate = _coerce_alignment_record(record)
     chosen_action = _normalize_action(base_candidate.get("action", {}))
     proxy_target_action = _normalize_action(base_candidate.get("proxy_target_action", {}))
+    explicit_challenge_action = _extract_explicit_challenge_action(base_candidate)
+
+    candidate_specs: list[tuple[str, dict[str, object]]] = [("logged_action", chosen_action)]
+    if proxy_target_action and not _actions_equal(proxy_target_action, chosen_action):
+        candidate_specs.append(("proxy_target", proxy_target_action))
+    if explicit_challenge_action and not any(
+        _actions_equal(explicit_challenge_action, candidate_action) for _, candidate_action in candidate_specs
+    ):
+        candidate_specs.append(("legal_challenge", explicit_challenge_action))
 
     candidates: list[dict[str, object]] = []
-    total = max(1, int(group_size))
-    for index in range(total):
-        if index == 0:
-            candidate_action = chosen_action
-            candidate_role = "logged_action"
-        elif index == 1:
-            candidate_action = proxy_target_action or chosen_action
-            candidate_role = "proxy_target"
-        else:
-            candidate_action = proxy_target_action or chosen_action
-            candidate_role = "proxy_target_repeat"
-
+    for index, (candidate_role, candidate_action) in enumerate(candidate_specs[: max(1, int(group_size))]):
         candidates.append(
             {
                 **base_candidate,
