@@ -144,10 +144,12 @@ class TrainSaviAlignmentTest(unittest.TestCase):
                     dataset_path=dataset_path,
                     model_path=model_path,
                     group_size=3,
+                    action_match_reward_weight=0.25,
                 )
 
             self.assertEqual(summary["record_count"], 1)
             self.assertEqual(summary["group_size"], 3)
+            self.assertEqual(summary["action_match_reward_weight"], 0.25)
             self.assertEqual(summary["groups"][0]["candidate_count"], 2)
             self.assertEqual(len(summary["groups"][0]["rewards"]), 2)
             self.assertEqual(len(summary["groups"][0]["advantages"]), 2)
@@ -158,13 +160,37 @@ class TrainSaviAlignmentTest(unittest.TestCase):
             self.assertIn("reward_breakdown", candidates[0])
             self.assertIn("reward_breakdown", candidates[1])
             self.assertLess(candidates[0]["reward_breakdown"]["hicra_penalty"], 0.0)
-            self.assertEqual(candidates[1]["reward_breakdown"]["action_match_reward"], 1.0)
+            self.assertEqual(candidates[1]["reward_breakdown"]["action_match_reward"], 0.25)
             self.assertGreater(
                 candidates[1]["reward_breakdown"]["total_reward"],
                 candidates[0]["reward_breakdown"]["total_reward"],
             )
             self.assertAlmostEqual(sum(summary["groups"][0]["advantages"]), 0.0, places=6)
             self.assertEqual(summary["smoke_metrics"]["high_ev_gap_mismatch_group_count"], 1)
+
+    def test_compute_reward_breakdown_respects_action_match_reward_weight(self) -> None:
+        module = _load_train_module()
+
+        class _FakePredictor:
+            def predict_state_features(self, state_features: dict[str, object]) -> float:
+                return 0.4
+
+        breakdown = module._compute_reward_breakdown(
+            predictor=_FakePredictor(),
+            candidate={
+                "action": {"type": "play_claim", "claim_rank": "A", "cards": ["A"]},
+                "proxy_target_action": {"type": "play_claim", "claim_rank": "A", "cards": ["A"]},
+                "state_features": {"action_type": "play_claim", "action_cards": ["A"]},
+                "strategic_tokens": [],
+                "strategic_token_weight": 1.0,
+                "token_penalty": 0.0,
+            },
+            action_match_reward_weight=0.3,
+        )
+
+        self.assertAlmostEqual(breakdown["action_match_reward"], 0.3, places=6)
+        self.assertAlmostEqual(breakdown["phi_dense_reward"], 0.4, places=6)
+        self.assertAlmostEqual(breakdown["total_reward"], 0.7, places=6)
 
     def test_build_group_candidates_deduplicates_proxy_target_repeats_and_keeps_challenge_path(self) -> None:
         module = _load_train_module()

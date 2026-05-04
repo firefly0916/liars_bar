@@ -22,6 +22,7 @@ from liars_game_engine.analysis.train_value_proxy import (
 
 DEFAULT_PROXY_MODEL_PATH = Path("models/proxy/value_proxy_mlp_distill.pt")
 DEFAULT_SIGNAL_EPSILON = 1e-8
+DEFAULT_ACTION_MATCH_REWARD_WEIGHT = 0.25
 _CJK_PATTERN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 
 
@@ -481,11 +482,12 @@ def _build_group_candidates(record: dict[str, object], group_size: int) -> list[
 def _compute_reward_breakdown(
     predictor: ProxyValuePredictor | object,
     candidate: dict[str, object],
+    action_match_reward_weight: float = DEFAULT_ACTION_MATCH_REWARD_WEIGHT,
 ) -> dict[str, float]:
     proxy_target_action = candidate.get("proxy_target_action", {})
     if not isinstance(proxy_target_action, dict):
         proxy_target_action = {}
-    action_match_reward = 1.0 if _actions_equal(candidate.get("action", {}), proxy_target_action) else 0.0
+    action_match_reward = float(action_match_reward_weight) if _actions_equal(candidate.get("action", {}), proxy_target_action) else 0.0
     phi_dense_reward = _score_candidate(predictor, candidate)
     strategic_tokens = candidate.get("strategic_tokens", [])
     has_strategic_tokens = isinstance(strategic_tokens, list) and len(strategic_tokens) > 0
@@ -505,11 +507,16 @@ def _build_scored_group(
     predictor: ProxyValuePredictor | object,
     record: dict[str, object],
     group_size: int,
+    action_match_reward_weight: float = DEFAULT_ACTION_MATCH_REWARD_WEIGHT,
 ) -> dict[str, object]:
     candidates = _build_group_candidates(record, group_size=group_size)
     rewards: list[float] = []
     for candidate in candidates:
-        reward_breakdown = _compute_reward_breakdown(predictor, candidate)
+        reward_breakdown = _compute_reward_breakdown(
+            predictor,
+            candidate,
+            action_match_reward_weight=action_match_reward_weight,
+        )
         candidate["reward_breakdown"] = reward_breakdown
         rewards.append(float(reward_breakdown["total_reward"]))
     advantages = compute_group_relative_advantages(rewards)
@@ -577,6 +584,7 @@ def run_alignment_dry_run(
     dataset_path: Path | str,
     model_path: Path | str | None = None,
     group_size: int = 8,
+    action_match_reward_weight: float = DEFAULT_ACTION_MATCH_REWARD_WEIGHT,
 ) -> dict[str, object]:
     records = load_alignment_records(dataset_path)
     resolved_model_path = Path(model_path) if model_path is not None else DEFAULT_PROXY_MODEL_PATH
@@ -584,12 +592,20 @@ def run_alignment_dry_run(
 
     groups: list[dict[str, object]] = []
     for record in records:
-        groups.append(_build_scored_group(predictor=predictor, record=record, group_size=group_size))
+        groups.append(
+            _build_scored_group(
+                predictor=predictor,
+                record=record,
+                group_size=group_size,
+                action_match_reward_weight=action_match_reward_weight,
+            )
+        )
 
     summary = {
         "dataset_path": str(dataset_path),
         "model_path": str(resolved_model_path),
         "group_size": int(group_size),
+        "action_match_reward_weight": float(action_match_reward_weight),
         "record_count": len(records),
         "groups": groups,
     }
@@ -784,6 +800,7 @@ def run_smoke_training(
     anchor_ratio: float = 0.7,
     anchor_alpha: float = 1.0,
     ev_gap_threshold: float = 0.15,
+    action_match_reward_weight: float = DEFAULT_ACTION_MATCH_REWARD_WEIGHT,
     checkpoint_dir: Path | str | None = None,
     save_every_steps: int | None = None,
     save_final_adapter: bool = False,
@@ -829,7 +846,12 @@ def run_smoke_training(
     checkpoint_events: list[dict[str, object]] = []
     for step_index in range(steps):
         record = scheduled_records[step_index % len(scheduled_records)]
-        group = _build_scored_group(predictor=predictor, record=record, group_size=group_size)
+        group = _build_scored_group(
+            predictor=predictor,
+            record=record,
+            group_size=group_size,
+            action_match_reward_weight=action_match_reward_weight,
+        )
         reward_span = max(group["rewards"]) - min(group["rewards"]) if group.get("rewards") else 0.0
         mean_advantage_abs = sum(abs(float(item)) for item in group.get("advantages", [])) / len(group.get("advantages", [])) if group.get("advantages") else 0.0
         mask_metrics = group["mask_metrics"]
@@ -955,6 +977,7 @@ def run_smoke_training(
         "policy_model_path": policy_model_path,
         "proxy_model_path": str(resolved_model_path),
         "group_size": int(group_size),
+        "action_match_reward_weight": float(action_match_reward_weight),
         "requested_steps": int(steps),
         "completed_steps": len(step_summaries),
         "records_used": len(records),
@@ -1000,6 +1023,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--anchor-ratio", type=float, default=0.7)
     parser.add_argument("--anchor-alpha", type=float, default=1.0)
     parser.add_argument("--ev-gap-threshold", type=float, default=0.15)
+    parser.add_argument("--action-match-reward-weight", type=float, default=DEFAULT_ACTION_MATCH_REWARD_WEIGHT)
     parser.add_argument("--checkpoint-dir", default=None)
     parser.add_argument("--save-every-steps", type=int, default=None)
     parser.add_argument("--save-final-adapter", action="store_true", default=False)
@@ -1015,6 +1039,7 @@ def main() -> None:
             dataset_path=args.dataset_path,
             model_path=args.model_path,
             group_size=args.group_size,
+            action_match_reward_weight=args.action_match_reward_weight,
         )
     else:
         if not args.policy_model_path:
@@ -1042,6 +1067,7 @@ def main() -> None:
             anchor_ratio=args.anchor_ratio,
             anchor_alpha=args.anchor_alpha,
             ev_gap_threshold=args.ev_gap_threshold,
+            action_match_reward_weight=args.action_match_reward_weight,
             checkpoint_dir=args.checkpoint_dir,
             save_every_steps=args.save_every_steps,
             save_final_adapter=bool(args.save_final_adapter),
