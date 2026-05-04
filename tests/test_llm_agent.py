@@ -369,11 +369,14 @@ class LlmAgentTest(unittest.IsolatedAsyncioTestCase):
         }
 
         messages = build_openai_messages(profile, observation)
-        tokenizer = AutoTokenizer.from_pretrained(
-            "Qwen/Qwen2.5-0.5B-Instruct",
-            trust_remote_code=True,
-            local_files_only=True,
-        )
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(
+                "Qwen/Qwen2.5-0.5B-Instruct",
+                trust_remote_code=True,
+                local_files_only=True,
+            )
+        except OSError as exc:
+            self.skipTest(f"local tokenizer cache unavailable: {exc}")
         prompt_tokens = tokenizer(messages[1]["content"], return_tensors="pt")["input_ids"].shape[-1]
 
         self.assertLess(
