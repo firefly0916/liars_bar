@@ -29,15 +29,7 @@ DEFAULT_PROFILE = {
 
 
 def load_prompt_profile(profile_name: str, profiles_dir: Path | str = "prompts/profiles") -> dict[str, object]:
-    """作用: 加载指定 profile，不存在时回落到默认模板。
-
-    输入:
-    - profile_name: profile 文件名（不含扩展名）。
-    - profiles_dir: profile 目录路径。
-
-    返回:
-    - dict[str, object]: 合并默认值后的 profile 配置。
-    """
+    """Load a named prompt profile and fall back to defaults when absent."""
     base_dir = Path(profiles_dir)
     profile_path = base_dir / f"{profile_name}.yaml"
     if not profile_path.exists():
@@ -52,15 +44,7 @@ def load_prompt_profile(profile_name: str, profiles_dir: Path | str = "prompts/p
 
 
 def build_prompt(profile: dict[str, object], observation: dict[str, object]) -> str:
-    """作用: 将 profile 与 observation 拼装为提示词文本。
-
-    输入:
-    - profile: 包含 system/instruction 等字段的模板字典。
-    - observation: 当前局面观测。
-
-    返回:
-    - str: 发送给模型的完整 prompt。
-    """
+    """Render a single-string prompt from a profile and observation payload."""
     return (
         f"SYSTEM:\n{profile['system']}\n\n"
         f"INSTRUCTION:\n{profile['instruction']}\n\n"
@@ -91,18 +75,18 @@ def _truthful_card_count(cards: list[str], table_type: str) -> int:
 
 def _describe_truth_ratio(ratio: float) -> str:
     if ratio >= 0.75:
-        return "真牌充足"
+        return "truth-heavy"
     if ratio >= 0.4:
-        return "真假参半"
-    return "真牌偏少"
+        return "mixed"
+    return "truth-light"
 
 
 def _describe_persona_stability(score: float) -> str:
     if score >= 0.75:
-        return "较稳"
+        return "stable"
     if score >= 0.4:
-        return "一般"
-    return "脆弱"
+        return "adaptive"
+    return "fragile"
 
 
 def _build_qualitative_context(
@@ -174,7 +158,7 @@ def _sanitize_instruction(instruction: str, allowed_action_types: list[str]) -> 
 
 
 def format_observation_for_llm(observation: dict[str, object]) -> str:
-    """作用: 将 8D 状态特征翻译为“三段式”自然语言 briefing。"""
+    """Translate structured game state into the three-section LLM briefing."""
     player_id = str(observation.get("player_id", ""))
     phase = str(observation.get("phase", ""))
     table_type = str(observation.get("table_type", ""))
@@ -226,9 +210,9 @@ def format_observation_for_llm(observation: dict[str, object]) -> str:
         f"- phase: {phase}\n"
         f"- table: {table_type}\n"
         f"- hand: {private_hand_text}\n"
-        f"- 诚实度参考: {_format_percent(hand_truth_ratio)}\n"
-        f"- 人设稳定性: {_format_percent(action_consistency_score)}\n"
-        f"- 轮盘死亡概率: {_format_percent(death_probability)} ({lethal_slots} lethal / {safe_slots} safe)\n"
+        f"- honesty_reference: {_format_percent(hand_truth_ratio)}\n"
+        f"- persona_stability: {_format_percent(action_consistency_score)}\n"
+        f"- roulette_death_probability: {_format_percent(death_probability)} ({lethal_slots} lethal / {safe_slots} safe)\n"
         f"- pending: {pending_claim_text}\n"
         f"- must_challenge: {bool(observation.get('must_call_liar', False))}\n"
         f"- legal: {' | '.join(legal_action_lines)}\n\n"
@@ -255,15 +239,7 @@ def format_observation_for_llm(observation: dict[str, object]) -> str:
 
 
 def build_openai_messages(profile: dict[str, object], observation: dict[str, object]) -> list[dict[str, str]]:
-    """作用: 构造 OpenAI-compatible chat.completions 请求消息。
-
-    输入:
-    - profile: 包含 system/instruction 等字段的模板字典。
-    - observation: 当前局面观测。
-
-    返回:
-    - list[dict[str, str]]: system/user 双消息结构。
-    """
+    """Build OpenAI-compatible system/user chat messages for one decision."""
     allowed_action_types = _legal_action_types(observation)
     return [
         {

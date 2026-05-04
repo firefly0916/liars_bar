@@ -29,7 +29,7 @@ class FakeCompletions:
             choices=[
                 SimpleNamespace(
                     message=SimpleNamespace(
-                        content='{"Reasoning":"继续吹牛还能保留主动权。","Action":{"type":"play_claim","play_count":1,"true_card_count":0}}'
+                        content='{"Reasoning":"A small bluff keeps the initiative without overcommitting.","Action":{"type":"play_claim","play_count":1,"true_card_count":0}}'
                     )
                 )
             ]
@@ -38,14 +38,7 @@ class FakeCompletions:
 
 class LlmAgentTest(unittest.IsolatedAsyncioTestCase):
     async def test_build_agents_uses_llm_agent_and_executes_single_openai_call(self) -> None:
-        """作用: 验证新 llm agent_type 走单次 OpenAI-compatible 调用并解析动作 JSON。
-
-        输入:
-        - 无（测试内构造 settings、observation 与假 OpenAI 客户端）。
-
-        返回:
-        - 无。
-        """
+        """Verify the LLM agent path uses one OpenAI-compatible call and parses JSON."""
         FakeAsyncOpenAI.instances.clear()
         settings = AppSettings.from_dict(
             {
@@ -84,7 +77,7 @@ class LlmAgentTest(unittest.IsolatedAsyncioTestCase):
         with patch.object(llm_agent_module, "AsyncOpenAI", FakeAsyncOpenAI):
             decision = await agent.act(observation)
 
-        self.assertEqual(decision.thought, "继续吹牛还能保留主动权。")
+        self.assertEqual(decision.thought, "A small bluff keeps the initiative without overcommitting.")
         self.assertEqual(decision.action.type, "play_claim")
         self.assertEqual(decision.action.claim_rank, "A")
         self.assertEqual(decision.action.cards, ["K"])
@@ -149,7 +142,7 @@ class LlmAgentTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(kwargs["model"], "Qwen/Qwen2.5-0.5B-Instruct")
             self.assertEqual(kwargs["temperature"], 0.0)
             self.assertEqual(kwargs["messages"][0]["role"], "system")
-            return '{"Reasoning":"轮盘风险高，直接质疑。","Action":{"type":"challenge"}}'
+            return '{"Reasoning":"The roulette risk is too high, so challenge immediately.","Action":{"type":"challenge"}}'
 
         with patch.object(llm_agent_module, "AsyncOpenAI", None), patch.object(
             llm_agent_module,
@@ -159,7 +152,7 @@ class LlmAgentTest(unittest.IsolatedAsyncioTestCase):
         ):
             decision = await agent.act(observation)
 
-        self.assertEqual(decision.thought, "轮盘风险高，直接质疑。")
+        self.assertEqual(decision.thought, "The roulette risk is too high, so challenge immediately.")
         self.assertEqual(decision.action.type, "challenge")
 
     async def test_llm_agent_falls_back_when_local_backend_raises(self) -> None:
@@ -233,9 +226,9 @@ class LlmAgentTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Status Report", user_prompt)
         self.assertIn("Qualitative Context", user_prompt)
         self.assertIn("Decision Request", user_prompt)
-        self.assertIn("诚实度参考", user_prompt)
-        self.assertIn("人设稳定性", user_prompt)
-        self.assertIn("轮盘死亡概率", user_prompt)
+        self.assertIn("honesty_reference", user_prompt)
+        self.assertIn("persona_stability", user_prompt)
+        self.assertIn("roulette_death_probability", user_prompt)
         self.assertIn("Reasoning", user_prompt)
         self.assertIn("Action", user_prompt)
         self.assertIn("play_count", user_prompt)
@@ -334,7 +327,7 @@ class LlmAgentTest(unittest.IsolatedAsyncioTestCase):
                     choices=[
                         SimpleNamespace(
                             message=SimpleNamespace(
-                                content='{"Reasoning":"想打两张真牌压迫。","Action":{"type":"play_claim","play_count":2,"true_card_count":2}}'
+                                content='{"Reasoning":"I want to pressure the table with two truthful cards.","Action":{"type":"play_claim","play_count":2,"true_card_count":2}}'
                             )
                         )
                     ]
