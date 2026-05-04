@@ -7,6 +7,48 @@ from liars_game_engine.agents import local_backend
 
 
 class LocalBackendTest(unittest.TestCase):
+    def test_load_model_bundle_wraps_base_model_with_lora_adapter_when_requested(self) -> None:
+        calls: list[tuple[str, object, dict[str, object]]] = []
+
+        class FakeTokenizer:
+            @staticmethod
+            def from_pretrained(model_name: str, **kwargs):
+                calls.append(("tokenizer", model_name, kwargs))
+                return object()
+
+        class FakeModel:
+            @staticmethod
+            def from_pretrained(model_name: str, **kwargs):
+                calls.append(("model", model_name, kwargs))
+                return {"base_model_name": model_name}
+
+        class FakePeftModel:
+            @staticmethod
+            def from_pretrained(model, adapter_path: str, **kwargs):
+                calls.append(("adapter", adapter_path, kwargs))
+                return {"wrapped_model": model, "adapter_path": adapter_path}
+
+        fake_transformers = types.SimpleNamespace(
+            AutoTokenizer=FakeTokenizer,
+            AutoModelForCausalLM=FakeModel,
+        )
+        fake_peft = types.SimpleNamespace(PeftModel=FakePeftModel)
+
+        local_backend._load_model_bundle.cache_clear()
+        with patch.dict(sys.modules, {"transformers": fake_transformers, "peft": fake_peft}):
+            bundle = local_backend._load_model_bundle(
+                "Qwen/Qwen2.5-7B-Instruct",
+                adapter_path="/tmp/lora/final",
+            )
+
+        self.assertEqual(bundle.model["adapter_path"], "/tmp/lora/final")
+        tokenizer_call = next(payload for kind, payload, _ in calls if kind == "tokenizer")
+        model_call = next(payload for kind, payload, _ in calls if kind == "model")
+        adapter_call = next(payload for kind, payload, _ in calls if kind == "adapter")
+        self.assertEqual(tokenizer_call, "/tmp/lora/final")
+        self.assertEqual(model_call, "Qwen/Qwen2.5-7B-Instruct")
+        self.assertEqual(adapter_call, "/tmp/lora/final")
+
     def test_load_model_bundle_uses_local_files_only_for_local_hf_backend(self) -> None:
         calls: list[tuple[str, dict[str, object]]] = []
 
@@ -185,6 +227,52 @@ class LocalBackendTest(unittest.TestCase):
         self.assertIsNotNone(tokenizer.last_inputs)
         self.assertEqual(tokenizer.last_inputs["input_ids"].moved_to, "cuda")
         self.assertEqual(tokenizer.last_inputs["attention_mask"].moved_to, "cuda")
+
+    def test_generate_local_chat_completion_uses_adapter_path_from_env(self) -> None:
+        async def _fake_to_thread(function, *args):
+            return function(*args)
+
+        with patch.object(
+            local_backend.asyncio,
+            "to_thread",
+            side_effect=_fake_to_thread,
+        ) as to_thread, patch.object(
+            local_backend,
+            "_generate_local_chat_completion_sync",
+            return_value='{"Reasoning":"short","Action":{"type":"challenge"}}',
+        ) as generate_sync, patch.dict(
+            "os.environ",
+            {
+                "LOCAL_LLM_ADAPTER_PATH": "/tmp/lora/final",
+                "LOCAL_LLM_DEVICE": "cuda",
+            },
+            clear=False,
+        ):
+            result = self._run_async(
+                local_backend.generate_local_chat_completion(
+                    model="Qwen/Qwen2.5-7B-Instruct",
+                    messages=[{"role": "user", "content": "hi"}],
+                    temperature=0.0,
+                )
+            )
+
+        self.assertEqual(result, '{"Reasoning":"short","Action":{"type":"challenge"}}')
+        self.assertEqual(to_thread.call_count, 1)
+        generate_sync.assert_called_once_with(
+            "Qwen/Qwen2.5-7B-Instruct",
+            [{"role": "user", "content": "hi"}],
+            0.0,
+            96,
+            "cuda",
+            None,
+            "/tmp/lora/final",
+        )
+
+    @staticmethod
+    def _run_async(awaitable):
+        import asyncio
+
+        return asyncio.run(awaitable)
 
 
 if __name__ == "__main__":

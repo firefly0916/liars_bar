@@ -22,11 +22,20 @@ def _resolve_local_files_only() -> bool:
     return raw not in {"0", "false", "no"}
 
 
+def _resolve_local_adapter_path(adapter_path: str | None = None) -> str | None:
+    resolved = adapter_path or os.environ.get("LOCAL_LLM_ADAPTER_PATH")
+    if resolved is None:
+        return None
+    text = str(resolved).strip()
+    return text or None
+
+
 @lru_cache(maxsize=4)
 def _load_model_bundle(
     model_name: str,
     device: str | None = None,
     device_map: str | None = None,
+    adapter_path: str | None = None,
 ) -> LocalModelBundle:
     try:
         from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -38,9 +47,10 @@ def _load_model_bundle(
     except Exception:  # pragma: no cover - torch is a required runtime dependency in this repo.
         torch = None
 
+    resolved_adapter_path = _resolve_local_adapter_path(adapter_path)
     local_files_only = _resolve_local_files_only()
     tokenizer = AutoTokenizer.from_pretrained(
-        model_name,
+        resolved_adapter_path or model_name,
         trust_remote_code=True,
         local_files_only=local_files_only,
     )
@@ -54,6 +64,12 @@ def _load_model_bundle(
         model_kwargs["torch_dtype"] = torch.float16
 
     model = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
+    if resolved_adapter_path:
+        try:
+            from peft import PeftModel
+        except Exception as error:  # pragma: no cover - depends on optional local runtime deps.
+            raise LocalBackendUnavailableError("peft is required for local://hf LoRA adapter loading") from error
+        model = PeftModel.from_pretrained(model, resolved_adapter_path, local_files_only=local_files_only)
     if (
         torch is not None
         and device
@@ -79,6 +95,7 @@ def _generate_local_chat_completion_sync(
     max_new_tokens: int,
     device: str | None = None,
     device_map: str | None = None,
+    adapter_path: str | None = None,
 ) -> str:
     try:
         import torch
@@ -88,7 +105,12 @@ def _generate_local_chat_completion_sync(
     if torch is not None:
         torch.set_num_threads(1)
 
-    bundle = _load_model_bundle(model, device=device, device_map=device_map)
+    bundle = _load_model_bundle(
+        model,
+        device=device,
+        device_map=device_map,
+        adapter_path=adapter_path,
+    )
     if hasattr(bundle.model, "eval"):
         bundle.model.eval()
     prompt = _build_prompt(messages, bundle.tokenizer)
@@ -125,6 +147,7 @@ async def generate_local_chat_completion(
 ) -> str:
     resolved_device = device or os.environ.get("LOCAL_LLM_DEVICE")
     resolved_device_map = device_map or os.environ.get("LOCAL_LLM_DEVICE_MAP")
+    resolved_adapter_path = _resolve_local_adapter_path()
     resolved_max_new_tokens = int(os.environ.get("LOCAL_LLM_MAX_NEW_TOKENS", str(max_new_tokens)))
     return await asyncio.to_thread(
         _generate_local_chat_completion_sync,
@@ -134,4 +157,5 @@ async def generate_local_chat_completion(
         resolved_max_new_tokens,
         resolved_device,
         resolved_device_map,
+        resolved_adapter_path,
     )
