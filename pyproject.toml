@@ -1,3 +1,10 @@
+[build-system]
+requires = [
+  "setuptools>=68",
+  "wheel",
+]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "liars-game-engine"
 version = "0.1.0"
@@ -8,6 +15,7 @@ dependencies = [
   "pydantic>=2.0",
   "python-dotenv>=1.0",
   "PyYAML>=6.0",
+  "torch>=2.0",
 ]
 
 [project.optional-dependencies]
@@ -15,6 +23,15 @@ dev = [
   "pytest>=8.0",
   "pytest-asyncio>=0.23",
 ]
+train = [
+  "transformers>=4.49",
+  "peft>=0.14",
+  "accelerate>=1.4",
+  "trl>=0.15",
+]
+
+[tool.setuptools.packages.find]
+include = ["liars_game_engine*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

@@ -13,29 +13,20 @@ from liars_game_engine.analysis.train_value_proxy import (
 
 
 STRONG_SIGNALS = (
-    "必须",
-    "肯定",
-    "绝对",
-    "明显",
-    "一定",
-    "立刻",
-    "最优",
     "definitely",
     "certainly",
     "clearly",
     "must",
+    "immediately",
+    "optimal",
 )
 HEDGE_SIGNALS = (
-    "也许",
-    "可能",
-    "不太确定",
-    "不确定",
-    "倾向",
-    "保守",
     "maybe",
     "perhaps",
     "might",
     "uncertain",
+    "not certain",
+    "conservative",
 )
 
 
