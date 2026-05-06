@@ -196,6 +196,12 @@ class EvalScorecardTest(unittest.TestCase):
             self.assertAlmostEqual(scorecard["quality"]["conflict_rate"], 0.1, places=6)
             self.assertAlmostEqual(scorecard["quality"]["avg_ev_gap"], 0.125, places=6)
             self.assertAlmostEqual(scorecard["quality"]["resolution_adjustment_rate"], 0.2, places=6)
+            self.assertEqual(scorecard["stability"]["negative_phi_turn_count"], 2)
+            self.assertAlmostEqual(scorecard["stability"]["max_ev_gap"], 0.7, places=6)
+            self.assertEqual(scorecard["stability"]["high_ev_gap_turn_count"], 3)
+            self.assertAlmostEqual(scorecard["stability"]["challenge_rate"], 0.3, places=6)
+            self.assertAlmostEqual(scorecard["stability"]["play_claim_rate"], 0.7, places=6)
+            self.assertAlmostEqual(scorecard["stability"]["pass_rate"], 0.0, places=6)
             self.assertEqual(scorecard["behavior"]["challenge_attempt_count"], 2)
             self.assertEqual(scorecard["behavior"]["correct_challenge_count"], 1)
             self.assertAlmostEqual(scorecard["behavior"]["challenge_accuracy"], 0.5, places=6)
@@ -204,6 +210,15 @@ class EvalScorecardTest(unittest.TestCase):
             self.assertAlmostEqual(scorecard["behavior"]["bluff_efficiency"], 0.5, places=6)
             self.assertEqual(scorecard["auxiliary"]["win_count"], 1)
             self.assertAlmostEqual(scorecard["auxiliary"]["win_rate"], 0.5, places=6)
+
+            markdown = module.render_scorecards_markdown([scorecard])
+            self.assertIn("max_ev_gap", markdown)
+            self.assertIn("high_ev_gap_turn_count", markdown)
+            self.assertIn("negative_phi_turn_count", markdown)
+            self.assertIn("challenge_rate", markdown)
+            self.assertIn("play_claim_rate", markdown)
+            self.assertIn("pass_rate", markdown)
+            self.assertIn("| baseline | True | 0.000000 | 0 | 0.125000 | 1 | 0.100000 | 0.200000 | 0.700000 | 3 | 2 | 0.300000 | 0.700000 | 0.000000 | 0.500000 | 0.500000 | 0.500000 |", markdown)
 
 
 if __name__ == "__main__":
