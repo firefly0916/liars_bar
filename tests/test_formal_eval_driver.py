@@ -1,6 +1,11 @@
 import importlib
+import importlib.util
 import json
+import os
+import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -54,6 +59,45 @@ class FormalEvalDriverTest(unittest.TestCase):
             tags = module.load_checkpoint_tags(selection_payload=payload, explicit_tags=[])
 
         self.assertEqual(tags, ["step-000150", "step-000200"])
+
+    def test_run_selected_formal_eval_streams_child_output_to_log_while_running(self) -> None:
+        script_path = Path(__file__).resolve().parent.parent / "scripts" / "run_selected_formal_eval.py"
+        spec = importlib.util.spec_from_file_location("run_selected_formal_eval_script", script_path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            log_path = root / "stream.log"
+            command = [
+                sys.executable,
+                "-c",
+                "import time; print('start', flush=True); time.sleep(0.4); print('end', flush=True)",
+            ]
+            failure: list[BaseException] = []
+
+            def _runner() -> None:
+                try:
+                    module._run_command(command, cwd=root, env=dict(os.environ), log_path=log_path)
+                except BaseException as exc:  # pragma: no cover
+                    failure.append(exc)
+
+            thread = threading.Thread(target=_runner)
+            thread.start()
+            time.sleep(0.15)
+
+            self.assertTrue(log_path.exists())
+            partial = log_path.read_text(encoding="utf-8")
+            self.assertIn("start", partial)
+            self.assertNotIn("end", partial)
+
+            thread.join(timeout=2.0)
+            self.assertFalse(thread.is_alive())
+            self.assertEqual(failure, [])
+            final = log_path.read_text(encoding="utf-8")
+            self.assertIn("end", final)
 
 
 if __name__ == "__main__":

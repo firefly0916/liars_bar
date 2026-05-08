@@ -77,20 +77,25 @@ def _write_log(log_path: Path, content: str) -> None:
 
 
 def _run_command(command: list[str], *, cwd: Path, env: dict[str, str], log_path: Path) -> None:
-    result = subprocess.run(
-        command,
-        cwd=cwd,
-        env=env,
-        capture_output=True,
-        text=True,
-    )
-    output = ""
-    if result.stdout:
-        output += result.stdout
-    if result.stderr:
-        output += result.stderr
-    _write_log(log_path, output)
-    result.check_returncode()
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("w", encoding="utf-8") as handle:
+        process = subprocess.Popen(
+            command,
+            cwd=cwd,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        assert process.stdout is not None
+        for line in process.stdout:
+            handle.write(line)
+            handle.flush()
+        process.stdout.close()
+        return_code = process.wait()
+    if return_code != 0:
+        raise subprocess.CalledProcessError(return_code, command)
 
 
 def main() -> int:
@@ -111,10 +116,10 @@ def main() -> int:
     )
     rendered = render_formal_eval_markdown(plan) if args.format == "markdown" else formal_eval_plan_to_json(plan)
     if args.dry_run:
-        print(rendered)
+        print(rendered, flush=True)
         return 0
 
-    print(rendered)
+    print(rendered, flush=True)
     eval_repo = Path(args.eval_repo)
     audit_repo = Path(args.audit_repo)
     taskm_script = eval_repo / "scripts" / "run_llm_drill.py"
@@ -134,6 +139,10 @@ def main() -> int:
         llm_env["LOCAL_LLM_MAX_NEW_TOKENS"] = str(args.local_llm_max_new_tokens)
         llm_env["LOCAL_LLM_ADAPTER_PATH"] = str(entry["checkpoint_path"])
 
+        print(
+            f"[formal-eval] start task_m tag={entry['tag']} games={args.games} log={entry['task_m_log_path']}",
+            flush=True,
+        )
         _run_command(
             [
                 sys.executable,
@@ -149,7 +158,12 @@ def main() -> int:
             env=llm_env,
             log_path=Path(str(entry["task_m_log_path"])),
         )
+        print(f"[formal-eval] done task_m tag={entry['tag']}", flush=True)
 
+        print(
+            f"[formal-eval] start audit tag={entry['tag']} log={entry['audit_log_path']}",
+            flush=True,
+        )
         _run_command(
             [
                 sys.executable,
@@ -174,6 +188,7 @@ def main() -> int:
             env=dict(os.environ),
             log_path=Path(str(entry["audit_log_path"])),
         )
+        print(f"[formal-eval] done audit tag={entry['tag']}", flush=True)
 
     return 0
 
