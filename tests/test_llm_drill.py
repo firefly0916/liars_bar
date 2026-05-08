@@ -209,6 +209,16 @@ class LlmDrillTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(settings.runtime.random_seed, 11)
         self.assertIsNot(first, settings)
 
+    def test_build_game_settings_supports_base_random_seed_override(self) -> None:
+        settings = self._make_settings()
+
+        first = _build_game_settings(settings, game_index=1, base_random_seed=77)
+        second = _build_game_settings(settings, game_index=2, base_random_seed=77)
+
+        self.assertEqual(first.runtime.random_seed, 77)
+        self.assertEqual(second.runtime.random_seed, 78)
+        self.assertEqual(settings.runtime.random_seed, 11)
+
 
 if __name__ == "__main__":
     unittest.main()

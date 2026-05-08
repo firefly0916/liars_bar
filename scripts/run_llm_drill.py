@@ -19,13 +19,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", default="config/experiment.yaml", help="Path to experiment config file.")
     parser.add_argument("--games", type=int, default=5, help="Number of games to run.")
     parser.add_argument("--log-dir", default="logs/llm_drill", help="Directory for drill logs and summary.")
+    parser.add_argument("--random-seed", type=int, default=None, help="Optional base random seed override.")
     return parser.parse_args()
 
 
 async def _run() -> dict[str, object]:
     args = parse_args()
     settings = load_settings(config_file=args.config)
-    return await run_llm_drill(settings=settings, games=args.games, log_dir=args.log_dir)
+    return await run_llm_drill(
+        settings=settings,
+        games=args.games,
+        log_dir=args.log_dir,
+        base_random_seed=args.random_seed,
+    )
 
 
 def main() -> None:

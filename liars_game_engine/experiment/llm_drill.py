@@ -112,9 +112,14 @@ def select_high_risk_reasoning_snippets(
     return ranked[:limit]
 
 
-def _build_game_settings(settings: AppSettings, game_index: int) -> AppSettings:
+def _build_game_settings(
+    settings: AppSettings,
+    game_index: int,
+    base_random_seed: int | None = None,
+) -> AppSettings:
     game_settings = copy.deepcopy(settings)
-    game_settings.runtime.random_seed = int(settings.runtime.random_seed) + max(0, int(game_index) - 1)
+    starting_seed = int(base_random_seed) if base_random_seed is not None else int(settings.runtime.random_seed)
+    game_settings.runtime.random_seed = starting_seed + max(0, int(game_index) - 1)
     return game_settings
 
 
@@ -122,6 +127,7 @@ async def run_llm_drill(
     settings: AppSettings,
     games: int = 5,
     log_dir: str | Path = "logs/llm_drill",
+    base_random_seed: int | None = None,
 ) -> dict[str, object]:
     log_dir_path = Path(log_dir)
     games_dir = log_dir_path / "games"
@@ -146,7 +152,7 @@ async def run_llm_drill(
     )
 
     for game_index in range(1, games + 1):
-        game_settings = _build_game_settings(settings, game_index)
+        game_settings = _build_game_settings(settings, game_index, base_random_seed=base_random_seed)
         env = GameEnvironment(game_settings)
         agents = build_agents(game_settings)
         logger = ExperimentLogger(base_dir=games_dir, game_id=_build_game_id(game_index))
@@ -206,6 +212,9 @@ async def run_llm_drill(
         "high_risk_reasoning_snippets": high_risk_reasoning_snippets,
         "high_risk_reasoning_path": str(high_risk_reasoning_path),
         "progress_log": str(progress_log),
+        "base_random_seed": (
+            int(base_random_seed) if base_random_seed is not None else int(settings.runtime.random_seed)
+        ),
     }
 
     summary_path = log_dir_path / "summary.json"
