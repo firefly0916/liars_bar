@@ -11,7 +11,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from liars_game_engine.config.loader import load_settings
-from liars_game_engine.experiment.llm_drill import run_llm_drill
+from liars_game_engine.experiment.llm_drill import ensure_expected_llm_model, run_llm_drill
 
 
 def parse_args() -> argparse.Namespace:
@@ -20,12 +20,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--games", type=int, default=5, help="Number of games to run.")
     parser.add_argument("--log-dir", default="logs/llm_drill", help="Directory for drill logs and summary.")
     parser.add_argument("--random-seed", type=int, default=None, help="Optional base random seed override.")
+    parser.add_argument(
+        "--expected-llm-model",
+        default=None,
+        help="Fail fast unless every llm player in config uses this exact model name.",
+    )
     return parser.parse_args()
 
 
 async def _run() -> dict[str, object]:
     args = parse_args()
     settings = load_settings(config_file=args.config)
+    ensure_expected_llm_model(settings, expected_model=args.expected_llm_model)
     return await run_llm_drill(
         settings=settings,
         games=args.games,

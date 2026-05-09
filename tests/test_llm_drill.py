@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from liars_game_engine.config.schema import AppSettings
 from liars_game_engine.experiment.llm_drill import (
+    ensure_expected_llm_model,
     _build_game_settings,
     run_llm_drill,
     select_high_risk_reasoning_snippets,
@@ -218,6 +219,12 @@ class LlmDrillTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(first.runtime.random_seed, 77)
         self.assertEqual(second.runtime.random_seed, 78)
         self.assertEqual(settings.runtime.random_seed, 11)
+
+    def test_ensure_expected_llm_model_raises_on_config_mismatch(self) -> None:
+        settings = self._make_settings()
+
+        with self.assertRaisesRegex(RuntimeError, "expected LLM model"):
+            ensure_expected_llm_model(settings, expected_model="Qwen/Qwen2.5-7B-Instruct")
 
 
 if __name__ == "__main__":

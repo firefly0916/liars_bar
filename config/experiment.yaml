@@ -19,7 +19,7 @@ players:
   - player_id: p1
     name: Drill-LLM
     agent_type: llm
-    model: Qwen/Qwen2.5-0.5B-Instruct
+    model: Qwen/Qwen2.5-7B-Instruct
     prompt_profile: baseline
     temperature: 0.8
   - player_id: p2

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import shutil
 
 
 def load_selection_payload(path: Path | str) -> dict[str, object]:
@@ -51,6 +52,14 @@ def _resolve_checkpoint_root(run_root: Path) -> Path:
     if flat.is_dir():
         return flat
     return nested
+
+
+def reset_experiment_root(experiment_root: Path | str) -> Path:
+    root = Path(experiment_root)
+    if root.exists():
+        shutil.rmtree(root)
+    root.mkdir(parents=True, exist_ok=True)
+    return root
 
 
 def build_formal_eval_plan(

@@ -15,6 +15,7 @@ from liars_game_engine.analysis.formal_eval_driver import (
     formal_eval_plan_to_json,
     load_checkpoint_tags,
     load_selection_payload,
+    reset_experiment_root,
     render_formal_eval_markdown,
 )
 
@@ -60,6 +61,11 @@ def parse_args() -> argparse.Namespace:
         "--proxy-model-path",
         default=os.environ.get("PROXY_MODEL_PATH", "/root/liars_bar_feat_grpo/models/proxy/value_proxy_mlp_distill.pt"),
         help="Proxy model path used by the audit step.",
+    )
+    parser.add_argument(
+        "--expected-llm-model",
+        default=os.environ.get("EVAL_MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct"),
+        help="Fail fast unless Task M config uses this exact llm model.",
     )
     parser.add_argument("--phi-threshold", type=float, default=-0.1)
     parser.add_argument("--potential-point-threshold", type=float, default=0.15)
@@ -128,8 +134,9 @@ def main() -> int:
     for entry in plan["entries"]:
         if not isinstance(entry, dict):
             continue
-        task_m_root = Path(str(entry["task_m_root"]))
-        audit_root = Path(str(entry["audit_root"]))
+        experiment_root = reset_experiment_root(Path(str(entry["experiment_root"])))
+        task_m_root = experiment_root / "task_m"
+        audit_root = experiment_root / "task_1_1"
         task_m_root.mkdir(parents=True, exist_ok=True)
         audit_root.mkdir(parents=True, exist_ok=True)
 
@@ -149,6 +156,8 @@ def main() -> int:
                 str(taskm_script),
                 "--config",
                 args.taskm_config,
+                "--expected-llm-model",
+                args.expected_llm_model,
                 "--games",
                 str(args.games),
                 "--log-dir",

@@ -16,6 +16,7 @@ SCORECARD_ROOT="$RUN_ROOT/scorecards"
 
 DATASET_PATH="${DATASET_PATH:-/root/liars_bar_dev_proxy_refine/logs/task_n_hicra_preprocessed/20260504-task2_1-english/savi_alignment_train.jsonl}"
 POLICY_MODEL_PATH="${POLICY_MODEL_PATH:-/root/autodl-tmp/models/huggingface/Qwen/Qwen2.5-7B-Instruct}"
+EVAL_MODEL_NAME="${EVAL_MODEL_NAME:-Qwen/Qwen2.5-7B-Instruct}"
 PROXY_MODEL_PATH="${PROXY_MODEL_PATH:-/root/liars_bar_feat_grpo/models/proxy/value_proxy_mlp_distill.pt}"
 
 TASKM_CONFIG="${TASKM_CONFIG:-/root/liars_bar/config/experiment.yaml}"
@@ -92,6 +93,7 @@ do
   LOCAL_LLM_ADAPTER_PATH="$CKPT" \
   python scripts/run_llm_drill.py \
     --config "$TASKM_CONFIG" \
+    --expected-llm-model "$EVAL_MODEL_NAME" \
     --games "$SCREEN_GAMES" \
     --log-dir "$TASKM_OUT" \
     > "$SCREEN_ROOT/$TAG/task_m_stdout.log" 2>&1
@@ -145,6 +147,7 @@ do
   LOCAL_LLM_ADAPTER_PATH="$CKPT" \
   python scripts/run_llm_drill.py \
     --config "$TASKM_CONFIG" \
+    --expected-llm-model "$EVAL_MODEL_NAME" \
     --games "$FORMAL_GAMES" \
     --log-dir "$TASKM_OUT" \
     > "$ROOT/task_m_stdout.log" 2>&1

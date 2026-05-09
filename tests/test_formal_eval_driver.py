@@ -8,6 +8,7 @@ import threading
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 class FormalEvalDriverTest(unittest.TestCase):
@@ -43,6 +44,21 @@ class FormalEvalDriverTest(unittest.TestCase):
         self.assertTrue(first_entry["checkpoint_path"].endswith("train/checkpoints/step-000140"))
         self.assertTrue(first_entry["task_m_log_path"].endswith("formal_eval_manual/step-000140/task_m_stdout.log"))
         self.assertEqual(first_entry["games"], 100)
+
+    def test_reset_experiment_root_removes_stale_outputs_and_recreates_directory(self) -> None:
+        module = importlib.import_module("liars_game_engine.analysis.formal_eval_driver")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            experiment_root = Path(temp_dir) / "formal_eval_manual" / "step-000140"
+            games_dir = experiment_root / "task_m" / "games"
+            games_dir.mkdir(parents=True, exist_ok=True)
+            (games_dir / "stale.jsonl").write_text("stale\n", encoding="utf-8")
+            (experiment_root / "task_m_stdout.log").write_text("stale log\n", encoding="utf-8")
+
+            module.reset_experiment_root(experiment_root)
+
+            self.assertTrue(experiment_root.is_dir())
+            self.assertEqual(list(experiment_root.iterdir()), [])
 
     def test_load_checkpoint_tags_from_selection_file_preserves_selected_order(self) -> None:
         module = importlib.import_module("liars_game_engine.analysis.formal_eval_driver")
@@ -98,6 +114,49 @@ class FormalEvalDriverTest(unittest.TestCase):
             self.assertEqual(failure, [])
             final = log_path.read_text(encoding="utf-8")
             self.assertIn("end", final)
+
+    def test_run_selected_formal_eval_passes_expected_llm_model_to_task_m(self) -> None:
+        script_path = Path(__file__).resolve().parent.parent / "scripts" / "run_selected_formal_eval.py"
+        spec = importlib.util.spec_from_file_location("run_selected_formal_eval_script", script_path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "train" / "checkpoints" / "step-000140").mkdir(parents=True, exist_ok=True)
+            captured: list[list[str]] = []
+
+            def _fake_run_command(command: list[str], *, cwd: Path, env: dict[str, str], log_path: Path) -> None:
+                captured.append(command)
+                log_path.parent.mkdir(parents=True, exist_ok=True)
+                log_path.write_text("ok\n", encoding="utf-8")
+
+            argv = [
+                "run_selected_formal_eval.py",
+                str(root),
+                "--checkpoint-tag",
+                "step-000140",
+                "--games",
+                "10",
+                "--expected-llm-model",
+                "Qwen/Qwen2.5-7B-Instruct",
+            ]
+
+            old_argv = sys.argv
+            sys.argv = argv
+            try:
+                with patch.object(module, "_run_command", side_effect=_fake_run_command):
+                    exit_code = module.main()
+            finally:
+                sys.argv = old_argv
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(len(captured), 2)
+        self.assertIn("--expected-llm-model", captured[0])
+        expected_index = captured[0].index("--expected-llm-model")
+        self.assertEqual(captured[0][expected_index + 1], "Qwen/Qwen2.5-7B-Instruct")
 
 
 if __name__ == "__main__":

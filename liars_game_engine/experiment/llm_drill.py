@@ -123,6 +123,25 @@ def _build_game_settings(
     return game_settings
 
 
+def ensure_expected_llm_model(settings: AppSettings, expected_model: str | None = None) -> str:
+    llm_players = [player for player in settings.players if player.agent_type == "llm"]
+    if not llm_players:
+        raise RuntimeError("Task M config must define at least one llm player.")
+
+    expected = str(expected_model or "").strip()
+    observed = str(llm_players[0].model).strip()
+    if not expected:
+        return observed
+
+    mismatched = [player for player in llm_players if str(player.model).strip() != expected]
+    if mismatched:
+        mismatch_summary = ", ".join(f"{player.player_id}={player.model}" for player in mismatched)
+        raise RuntimeError(
+            f"Task M config model mismatch: expected LLM model '{expected}', got {mismatch_summary}."
+        )
+    return expected
+
+
 async def run_llm_drill(
     settings: AppSettings,
     games: int = 5,
