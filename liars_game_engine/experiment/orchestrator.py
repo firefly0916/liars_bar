@@ -1,11 +1,50 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from uuid import uuid4
 
 from liars_game_engine.agents.base_agent import BaseAgent
 from liars_game_engine.engine.environment import GameEnvironment
 from liars_game_engine.engine.game_state import ActionModel
 from liars_game_engine.experiment.logger import ExperimentLogger
+
+
+def _build_safe_legal_fallback_action(observation: dict[str, object]) -> ActionModel:
+    legal_action_items = list(observation.get("legal_actions", []) or [])
+    legal_actions: set[str] = set()
+    play_claim_spec: dict[str, object] = {}
+    for item in legal_action_items:
+        if isinstance(item, dict):
+            action_type = str(item.get("type", ""))
+            if action_type:
+                legal_actions.add(action_type)
+            if action_type == "play_claim":
+                play_claim_spec = item
+        else:
+            legal_actions.add(str(item))
+
+    if "pass" in legal_actions:
+        return ActionModel(type="pass")
+    if "challenge" in legal_actions and "play_claim" not in legal_actions:
+        return ActionModel(type="challenge")
+    if "play_claim" in legal_actions:
+        table_rank = (
+            observation.get("table_type")
+            or observation.get("table_rank")
+            or play_claim_spec.get("claim_rank")
+        )
+        min_cards = int(play_claim_spec.get("min_cards", 1) or 1)
+        max_cards = int(play_claim_spec.get("max_cards", 1) or 1)
+        hand = observation.get("private_hand", [])
+        cards = [str(card) for card in hand if str(card)]
+        truthful_cards = [card for card in cards if table_rank is not None and card in {str(table_rank), "JOKER"}]
+        chosen_cards = truthful_cards[: min(max_cards, len(truthful_cards))]
+        if not chosen_cards:
+            chosen_cards = cards[: min(max(min_cards, 1), len(cards))]
+        return ActionModel(type="play_claim", claim_rank=str(table_rank), cards=chosen_cards)
+    if "challenge" in legal_actions:
+        return ActionModel(type="challenge")
+    return ActionModel(type="pass")
 
 
 class GameOrchestrator:
@@ -18,6 +57,7 @@ class GameOrchestrator:
         logger: ExperimentLogger,
         fallback_action: str,
         max_turns: int,
+        progress_callback: Callable[[dict[str, object]], None] | None = None,
     ) -> None:
         """作用: 初始化编排器与运行参数。
 
@@ -36,6 +76,7 @@ class GameOrchestrator:
         self.logger = logger
         self.fallback_action = fallback_action
         self.max_turns = max_turns
+        self.progress_callback = progress_callback
         self.turn_checkpoints: dict[str, dict[str, object]] = {}
 
     @staticmethod
@@ -101,6 +142,8 @@ class GameOrchestrator:
                 fallback_used = True
                 fallback_reason = step_result.error_reason
                 step_result = self.env.step(player_id, ActionModel(type=self.fallback_action))
+                if not step_result.success:
+                    step_result = self.env.step(player_id, _build_safe_legal_fallback_action(observation))
 
             trace_id = f"turn-{turns_played + 1}-{uuid4().hex[:8]}"
             self.turn_checkpoints[trace_id] = checkpoint
@@ -119,6 +162,8 @@ class GameOrchestrator:
                         "cards": decision.action.cards,
                     },
                     "raw_output": decision.raw_output,
+                    "llm_intent": decision.action_intent,
+                    "resolution_reason": decision.resolution_reason,
                     "skill_name": decision.selected_skill,
                     "skill_category": (
                         "Probe"
@@ -152,6 +197,17 @@ class GameOrchestrator:
             )
 
             turns_played += 1
+            if self.progress_callback is not None:
+                self.progress_callback(
+                    {
+                        "game_id": self.logger.game_id,
+                        "turns_played": turns_played,
+                        "max_turns": self.max_turns,
+                        "player_id": player_id,
+                        "fallback_used": fallback_used,
+                        "log_file": str(self.logger.log_file),
+                    }
+                )
 
         alive_players = [
             player_id

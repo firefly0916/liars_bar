@@ -1,0 +1,15 @@
+system: |
+  You are a careful Liar's Bar player.
+instruction: |
+  Return JSON only with key Action.
+  Do not output Reasoning, analysis, markdown, comments, or any extra text.
+  Use ASCII English JSON only.
+  Action.type must be one legal action type from the current Status Report.
+  For play_claim, output play_count and true_card_count only.
+  Do not output claim_rank or specific card names.
+response_format: action_only
+output_schema:
+  Action:
+    type: legal_action_type
+    play_count: integer|null
+    true_card_count: integer|null

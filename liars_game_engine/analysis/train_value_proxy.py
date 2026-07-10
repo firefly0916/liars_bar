@@ -27,6 +27,9 @@ TABLE_INDEX = {
     "K": 1.0,
     "Q": 2.0,
 }
+VALUE_PROXY_TARGET_WINNER = "winner"
+VALUE_PROXY_TARGET_PHI = "phi"
+VALUE_PROXY_TARGET_AUTO = "auto"
 VALUE_PROXY_INPUT_DIM = 8
 DEFAULT_VALUE_PROXY_EPOCHS = 40
 TRUTHFUL_DECK_CAP = 8.0
@@ -40,19 +43,27 @@ class ValueSample:
 
 
 class ValueProxyMLP(nn.Module):
-    def __init__(self, input_dim: int = VALUE_PROXY_INPUT_DIM, hidden_dim: int = 64) -> None:
+    def __init__(
+        self,
+        input_dim: int = VALUE_PROXY_INPUT_DIM,
+        hidden_dim: int = 64,
+        output_mode: str = VALUE_PROXY_TARGET_WINNER,
+    ) -> None:
         super().__init__()
-        self.network = nn.Sequential(
+        self.output_mode = output_mode
+        self.backbone = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
-            nn.Linear(hidden_dim // 2, 1),
-            nn.Sigmoid(),
         )
+        self.head = nn.Linear(hidden_dim // 2, 1)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        return self.network(inputs)
+        raw = self.head(self.backbone(inputs))
+        if self.output_mode == VALUE_PROXY_TARGET_PHI:
+            return torch.tanh(raw)
+        return torch.sigmoid(raw)
 
 
 def _safe_float(value: object, default: float = 0.0) -> float:
@@ -188,7 +199,11 @@ def _build_feature_vector(state_features: dict[str, object]) -> list[float]:
     alive_player_count = int(_safe_float(feature_context.get("alive_player_count", 0.0), default=0.0))
     hand_count = int(_safe_float(feature_context.get("hand_count", 0.0), default=0.0))
     death_probability = _clamp_unit(_safe_float(feature_context.get("death_probability", 0.0), default=0.0))
-    private_hand = [str(card) for card in feature_context.get("private_hand", []) if isinstance(feature_context.get("private_hand", []), list)]
+    private_hand = [
+        str(card)
+        for card in feature_context.get("private_hand", [])
+        if isinstance(feature_context.get("private_hand", []), list)
+    ]
     action_type = str(feature_context.get("action_type", ""))
     action_cards = [
         str(card)
@@ -205,7 +220,9 @@ def _build_feature_vector(state_features: dict[str, object]) -> list[float]:
     hand_truth_ratio = truthful_cards_in_hand / len(private_hand) if private_hand else 0.0
 
     if action_type == "play_claim":
-        action_consistency_score = _truthful_card_count(action_cards, table_type) / len(action_cards) if action_cards else 0.0
+        action_consistency_score = (
+            _truthful_card_count(action_cards, table_type) / len(action_cards) if action_cards else 0.0
+        )
     elif action_type == "challenge":
         action_consistency_score = _clamp_unit((truthful_cards_in_hand + pending_claim_declared_count) / TRUTHFUL_DECK_CAP)
     else:
@@ -227,7 +244,28 @@ def encode_value_proxy_features(state_features: dict[str, object]) -> list[float
     return _build_feature_vector(state_features)
 
 
-def load_value_samples(log_root: Path) -> list[ValueSample]:
+def _extract_value_target(
+    record: dict[str, object],
+    winner: str | None,
+    player_id: str,
+    target_mode: str,
+) -> float | None:
+    if target_mode in {VALUE_PROXY_TARGET_PHI, VALUE_PROXY_TARGET_AUTO}:
+        for label_key in ("shapley_value", "phi"):
+            label = record.get(label_key)
+            if label is None:
+                continue
+            try:
+                return float(label)
+            except (TypeError, ValueError):
+                continue
+        if target_mode == VALUE_PROXY_TARGET_PHI:
+            return None
+
+    return 1.0 if (winner is not None and player_id == winner) else 0.0
+
+
+def load_value_samples(log_root: Path, target_mode: str = VALUE_PROXY_TARGET_AUTO) -> list[ValueSample]:
     samples: list[ValueSample] = []
     log_paths = sorted(log_root.rglob("*.jsonl"))
     if not log_paths:
@@ -245,6 +283,17 @@ def load_value_samples(log_root: Path) -> list[ValueSample]:
         if not records:
             continue
 
+        turn_count = len(
+            {
+                int(_safe_float(record.get("turn", 0), default=0.0))
+                for record in records
+                if isinstance(record, dict)
+            }
+            - {0}
+        )
+        if turn_count < 3:
+            continue
+
         game_id = log_path.stem
         winner = _infer_winner(records)
 
@@ -260,7 +309,14 @@ def load_value_samples(log_root: Path) -> list[ValueSample]:
                 player_id=player_id,
                 action=record.get("action"),
             )
-            target = 1.0 if (winner is not None and player_id == winner) else 0.0
+            target = _extract_value_target(
+                record=record,
+                winner=winner,
+                player_id=player_id,
+                target_mode=target_mode,
+            )
+            if target is None:
+                continue
             samples.append(
                 ValueSample(
                     game_id=game_id,
@@ -272,10 +328,13 @@ def load_value_samples(log_root: Path) -> list[ValueSample]:
     return samples
 
 
-def load_value_samples_from_roots(log_roots: Iterable[Path]) -> list[ValueSample]:
+def load_value_samples_from_roots(
+    log_roots: Iterable[Path],
+    target_mode: str = VALUE_PROXY_TARGET_AUTO,
+) -> list[ValueSample]:
     samples: list[ValueSample] = []
     for log_root in log_roots:
-        samples.extend(load_value_samples(Path(log_root)))
+        samples.extend(load_value_samples(Path(log_root), target_mode=target_mode))
     return samples
 
 
@@ -324,7 +383,7 @@ def _evaluate_mse(model: nn.Module, dataset: TensorDataset, device: torch.device
             preds = model(features)
             loss = criterion(preds, targets)
             total_loss += float(loss.item())
-            total_count += targets.shape[0]
+            total_count += int(targets.shape[0])
 
     return total_loss / max(1, total_count)
 
@@ -333,6 +392,7 @@ def train_value_proxy(
     output_dir: Path,
     log_root: Path | None = None,
     log_roots: Iterable[Path] | None = None,
+    target_mode: str = VALUE_PROXY_TARGET_AUTO,
     val_ratio: float = 0.2,
     epochs: int = DEFAULT_VALUE_PROXY_EPOCHS,
     batch_size: int = 128,
@@ -350,9 +410,9 @@ def train_value_proxy(
             raise RuntimeError("Either log_root or log_roots must be provided")
         resolved_log_roots = [Path(log_root)]
 
-    samples = load_value_samples_from_roots(resolved_log_roots)
+    samples = load_value_samples_from_roots(resolved_log_roots, target_mode=target_mode)
     if not samples:
-        raise RuntimeError(f"No samples found under log roots: {resolved_log_roots}")
+        raise RuntimeError(f"No samples found under log roots: {resolved_log_roots} for target_mode={target_mode}")
 
     train_samples, val_samples = split_train_val(samples=samples, val_ratio=val_ratio, seed=seed)
     if not train_samples or not val_samples:
@@ -362,7 +422,12 @@ def train_value_proxy(
     val_dataset = _build_dataset(val_samples)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = ValueProxyMLP(input_dim=VALUE_PROXY_INPUT_DIM, hidden_dim=64).to(device)
+    output_mode = VALUE_PROXY_TARGET_PHI if target_mode == VALUE_PROXY_TARGET_PHI else VALUE_PROXY_TARGET_WINNER
+    model = ValueProxyMLP(
+        input_dim=VALUE_PROXY_INPUT_DIM,
+        hidden_dim=64,
+        output_mode=output_mode,
+    ).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.MSELoss()
 
@@ -416,6 +481,7 @@ def train_value_proxy(
         "val_mse": float(final_val_mse),
         "best_val_mse": float(best_val_mse),
         "input_dim": VALUE_PROXY_INPUT_DIM,
+        "target_mode": target_mode,
         "model_path": str(model_path),
     }
     metrics_path.write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")

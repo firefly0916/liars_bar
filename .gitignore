@@ -1,4 +1,9 @@
 __pycache__/
 *.pyc
 .env
+.worktrees/
 logs/runs/*.jsonl
+/recovery/
+*.safetensors
+*.pt
+*.tar.gz

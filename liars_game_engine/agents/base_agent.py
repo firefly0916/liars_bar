@@ -15,6 +15,8 @@ class AgentDecision:
     selected_skill: str | None = None
     skill_parameters: dict[str, object] = field(default_factory=dict)
     decision_bias: str | None = None
+    action_intent: dict[str, object] | None = None
+    resolution_reason: str | None = None
 
 
 class BaseAgent(ABC):
